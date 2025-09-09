@@ -1,674 +1,4 @@
-function updateLiveConstellation(participants) {
-const container = document.getElementById('live-constellation-participants');
-const connectionsContainer = document.getElementById('live-constellation-connections');
-const labelsContainer = document.getElementById('live-constellation-labels');
-
-// Clear existing
-container.innerHTML = '';
-connectionsContainer.innerHTML = '';
-labelsContainer.innerHTML = '';
-
-if (participants.length === 0) {
-const waitingText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-waitingText.setAttribute('x', '300');
-waitingText.setAttribute('y', '200');
-waitingText.setAttribute('text-anchor', 'middle');
-waitingText.setAttribute('fill', 'rgba(255,255,255,0.6)');
-waitingText.setAttribute('font-size', '18');
-waitingText.textContent = 'Waiting for assessments to complete...';
-container.appendChild(waitingText);
-return;
-}
-
-// Group participants by hub
-const hubGroups = {};
-participants.forEach(participant => {
-const hub = participant.hubNumber || 'Unknown';
-if (!hubGroups[hub]) hubGroups[hub] = [];
-hubGroups[hub].push(participant);
-});
-
-// Base constellation positions
-const positions = {
-linguistic: {x: 150, y: 80},
-logicalMath: {x: 450, y: 120},
-musical: {x: 500, y: 250},
-bodilyKinesthetic: {x: 300, y: 320},
-visualSpatial: {x: 100, y: 280},
-interpersonal: {x: 50, y: 150},
-intrapersonal: {x: 120, y: 100},
-naturalistic: {x: 250, y: 60},
-existential: {x: 300, y: 180}
-};
-
-const hubColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7', '#00b894', '#fdcb6e', '#e17055'];
-
-// Draw hub-specific constellations
-Object.entries(hubGroups).forEach(([hubNumber, hubParticipants], hubIndex) => {
-const hubColor = hubColors[hubIndex % hubColors.length];
-
-// Add hub label
-const hubLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-const hubY = 40 + (hubIndex * 15);
-hubLabel.setAttribute('x', '30');
-hubLabel.setAttribute('y', hubY);
-hubLabel.setAttribute('fill', hubColor);
-hubLabel.setAttribute('font-size', '12');
-hubLabel.setAttribute('font-weight', 'bold');
-hubLabel.textContent = `Hub ${hubNumber} (${hubParticipants.length})`;
-labelsContainer.appendChild(hubLabel);
-
-hubParticipants.forEach((participant, participantIndex) => {
-const baseOpacity = 0.8;
-const sizeReduction = hubParticipants.length > 10 ? 0.8 : 1;
-
-Object.entries(positions).forEach(([type, basePos]) => {
-const score = participant.intelligenceScores[type] || 0;
-if (score === 0) return;
-
-const radius = ((score / 5) * 12 + 4) * sizeReduction;
-const opacity = (baseOpacity + (score / 5) * 0.4) * 0.8;
-
-// Hub-specific offset calculation
-const offsetAngle = (participantIndex * 2 * Math.PI) / Math.max(hubParticipants.length, 6);
-const offsetRadius = Math.min(participantIndex * 8, 25) + (hubIndex * 15);
-const offsetX = Math.cos(offsetAngle) * offsetRadius;
-const offsetY = Math.sin(offsetAngle) * offsetRadius;
-
-const star = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-star.setAttribute('cx', basePos.x + offsetX);
-star.setAttribute('cy', basePos.y + offsetY);
-star.setAttribute('r', radius);
-star.setAttribute('fill', hubColor);
-star.setAttribute('opacity', opacity);
-star.setAttribute('class', score >= 4 ? 'star-glow' : '');
-
-container.appendChild(star);
-
-// Add participant label for their brightest stars only
-if (score >= 4.0) {
-const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-label.setAttribute('x', basePos.x + offsetX);
-label.setAttribute('y', basePos.y + offsetY - radius - 3);
-label.setAttribute('text-anchor', 'middle');
-label.setAttribute('fill', hubColor);
-label.setAttribute('font-size', '7');
-label.setAttribute('font-weight', 'bold');
-label.textContent = participant.name.length > 6 ? participant.name.substring(0, 6) + '...' : participant.name;
-labelsContainer.appendChild(label);
-}
-});
-
-// Draw connections within hub
-for (let i = 0; i < hubParticipants.length - 1; i++) {
-for (let j = i + 1; j < hubParticipants.length; j++) {
-const p1 = hubParticipants[i];
-const p2 = hubParticipants[j];
-
-// Find their strongest shared intelligence
-let strongestShared = null;
-let maxSharedScore = 0;
-Object.keys(positions).forEach(type => {
-const score1 = p1.intelligenceScores[type] || 0;
-const score2 = p2.intelligenceScores[type] || 0;
-const minScore = Math.min(score1, score2);
-if (minScore > maxSharedScore && minScore >= 3.5) {
-maxSharedScore = minScore;
-strongestShared = type;
-}
-});
-
-if (strongestShared) {
-const pos = positions[strongestShared];
-const offset1Angle = (i * 2 * Math.PI) / Math.max(hubParticipants.length, 6);
-const offset1Radius = Math.min(i * 8, 25) + (hubIndex * 15);
-const offset1X = Math.cos(offset1Angle) * offset1Radius;
-const offset1Y = Math.sin(offset1Angle) * offset1Radius;
-
-const offset2Angle = (j * 2 * Math.PI) / Math.max(hubParticipants.length, 6);
-const offset2Radius = Math.min(j * 8, 25) + (hubIndex * 15);
-const offset2X = Math.cos(offset2Angle) * offset2Radius;
-const offset2Y = Math.sin(offset2Angle) * offset2Radius;
-
-const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-line.setAttribute('x1', pos.x + offset1X);
-line.setAttribute('y1', pos.y + offset1Y);
-line.setAttribute('x2', pos.x + offset2X);
-line.setAttribute('y2', pos.y + offset2Y);
-line.setAttribute('stroke', hubColor);
-line.setAttribute('stroke-width', '1');
-line.setAttribute('opacity', '0.3');
-connectionsContainer.appendChild(line);
-}
-}
-}
-});
-});
-
-// Add main title
-const titleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-titleText.setAttribute('x', '300');
-titleText.setAttribute('y', '25');
-titleText.setAttribute('text-anchor', 'middle');
-titleText.setAttribute('fill', '#ff6b6b');
-titleText.setAttribute('font-size', '16');
-titleText.setAttribute('font-weight', 'bold');
-titleText.textContent = `Conference Constellation Map (${participants.length} participants)`;
-labelsContainer.appendChild(titleText);
-}
-
-async function generateBusinessOpportunities() {
-try {
-let allParticipants = [];
-
-// Try Firebase first
-if (firebaseAvailable && database) {
-try {
-const snapshot = await database.ref(`sessions/${assessmentData.sessionId}/participants`).once('value');
-allParticipants = Object.values(snapshot.val() || {});
-} catch (error) {
-console.warn('⚠ Firebase fetch failed for opportunities:', error);
-}
-}
-
-// Fallback to localStorage
-if (allParticipants.length === 0) {
-const sessionKey = `session_${assessmentData.sessionId}`;
-const sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{"participants": {}}');
-allParticipants = Object.values(sessionData.participants || {});
-}
-
-// Filter participants by current user's hub
-const currentHub = assessmentData.hubNumber;
-const hubParticipants = allParticipants.filter(p => p.hubNumber === currentHub);
-
-if (hubParticipants.length < 2) {
-alert(`Need at least 2 participants in Hub ${currentHub} to generate business opportunities. Currently ${hubParticipants.length} in your hub.`);
-return;
-}
-
-console.log(`🚀 Generating business opportunities for Hub ${currentHub}:`, hubParticipants.map(p => p.name));
-
-// Analyze collective profile
-const collectiveProfile = analyzeCollectiveProfile(hubParticipants);
-const opportunities = createBusinessOpportunities(collectiveProfile, hubParticipants);
-
-displayBusinessOpportunities(opportunities, currentHub);
-document.getElementById('entrepreneurial-opportunities').style.display = 'block';
-} catch (error) {
-console.error('Error generating opportunities:', error);
-alert('Failed to generate business opportunities. Please try again.');
-}
-}
-
-function analyzeCollectiveProfile(participants) {
-// Calculate collective intelligence scores
-const collectiveScores = {};
-Object.keys(intelligenceTypes).forEach(type => {
-const scores = participants.map(p => p.intelligenceScores[type] || 0);
-collectiveScores[type] = scores.reduce((a, b) => a + b) / scores.length;
-});
-
-// Analyze superpowers
-const allSuperpowers = participants.flatMap(p => p.selectedSuperpowers || []);
-const superpowerCounts = {};
-allSuperpowers.forEach(power => {
-superpowerCounts[power] = (superpowerCounts[power] || 0) + 1;
-});
-
-// Get top collective strengths
-const topIntelligences = Object.entries(collectiveScores)
-.sort(([,a], [,b]) => b - a)
-.slice(0, 3);
-
-const topSuperpowers = Object.entries(superpowerCounts)
-.sort(([,a], [,b]) => b - a)
-.slice(0, 3);
-
-return {
-participants,
-collectiveScores,
-topIntelligences,
-topSuperpowers,
-averageScore: Object.values(collectiveScores).reduce((a, b) => a + b) / Object.values(collectiveScores).length
-};
-}
-
-function createBusinessOpportunities(profile, participants) {
-const { topIntelligences, topSuperpowers } = profile;
-
-// Expanded opportunity pool with innovative peer-driven mental health ventures
-const opportunityPool = [
-{
-icon: "🎨",
-title: "Therapeutic Art Crowdfunding Collective",
-description: `Your group's ${intelligenceTypes[topIntelligences[0][0]].name} (${topIntelligences[0][1].toFixed(1)}/5) and ${intelligenceTypes[topIntelligences[1][0]].name} create powerful art that tells mental health stories. Launch crowdfunded campaigns where art sales fund peer support programs, mental health education, or crisis intervention resources.`,
-potential: "Revenue potential: $25K-500K per campaign through limited edition prints ($50-2000), commissioned pieces ($500-25K), corporate art installations ($5K-100K), and therapeutic art workshops ($100-1000 per person).",
-type: "arts"
-},
-{
-icon: "🏺",
-title: "Kintsugi Healing Workshop Empire",
-description: `Transform the Japanese art of golden repair into peer healing experiences. Your collective ${intelligenceTypes[topIntelligences[0][0]].name} creates workshops where participants repair broken pottery while processing their own healing journey - metaphorically mending their 'broken' parts with gold.`,
-potential: "Revenue potential: $40K-300K annually through workshop fees ($75-200 per person), corporate team building ($2K-15K per session), therapist training certifications ($500-2K), and Kintsugi kit sales ($25-150 each).",
-type: "workshops"
-},
-{
-icon: "🤖",
-title: "Peer Support DAO with AI Fleet",
-description: `Create a decentralized autonomous organization that deploys AI-driven support vehicles and robots to underserved communities. Your ${intelligenceTypes[topIntelligences[1][0]].name} designs systems where peer supporters coordinate with AI to provide 24/7 crisis response, medication delivery, and community check-ins.`,
-potential: "Revenue potential: $100K-2M+ annually through municipal contracts ($50K-500K), healthcare partnerships, subscription services ($30-100/month), and technology licensing to other communities.",
-type: "technology"
-},
-{
-icon: "🌱",
-title: "Neuroplasticity Garden Therapy Centers",
-description: `Combine your collective strengths to create spaces where people literally grow their healing. Design therapeutic gardens where participants grow plants while learning about neuroplasticity - understanding how their brains can 'grow' new pathways just like plants.`,
-potential: "Revenue potential: $75K-400K annually through individual sessions ($80-150), group programs ($50-100 per person), corporate wellness contracts ($10K-50K), and garden consultation ($2K-20K per project).",
-type: "therapy"
-},
-{
-icon: "🎪",
-title: "Trauma-Informed Circus Arts Collective",
-description: `Your group's unique combination of intelligences creates a circus arts program where aerial work, juggling, and performance help people reclaim their bodies and build confidence. Partner with treatment centers and schools for trauma-informed programming.`,
-potential: "Revenue potential: $60K-350K annually through classes ($25-75 per session), performances ($2K-25K per show), training programs for therapists ($1K-5K), and equipment sales ($50-2000).",
-type: "performance"
-},
-{
-icon: "🔮",
-title: "Peer Futures Visualization Studio",
-description: `Use your collective vision to help others imagine healing futures. Create immersive VR/AR experiences, guided visualization retreats, and future-self workshops where people can literally see and feel their recovered selves.`,
-potential: "Revenue potential: $50K-400K annually through individual sessions ($100-300), retreat weekends ($500-2000), VR licensing ($10K-100K), and corporate wellness programs ($5K-50K).",
-type: "technology"
-},
-{
-icon: "🎵",
-title: "Biorhythm Sound Healing Cooperative",
-description: `Develop sound therapy programs that sync with natural biological rhythms. Create healing soundscapes, binaural beat libraries, and live sound bath experiences specifically designed for different mental health conditions and recovery phases.`,
-potential: "Revenue potential: $40K-250K annually through sessions ($75-200), album sales ($10-50), corporate stress-reduction programs ($5K-30K), and sound healing certifications ($500-3K).",
-type: "wellness"
-},
-{
-icon: "📱",
-title: "Peer Micro-Learning Crisis App",
-description: `Build an app where peers share 30-second videos teaching specific coping skills they've mastered. Monetize through subscriptions, therapeutic partnerships, and AI-powered personalized skill recommendations based on user patterns.`,
-potential: "Revenue potential: $80K-1M+ annually through premium subscriptions ($10-30/month), in-app purchases ($1-20), healthcare licensing ($25K-200K), and advertising partnerships.",
-type: "digital"
-},
-{
-icon: "🏠",
-title: "Intentional Healing Community Network",
-description: `Create a network of peer-led intentional communities focused on collective healing. Design and manage sober living houses, co-housing projects, and retreat centers where mental health peers support each other's recovery journey.`,
-potential: "Revenue potential: $100K-800K annually through housing fees ($400-1200/month per resident), retreat programs ($200-2000 per person), consultation for new communities ($5K-50K), and property management contracts.",
-type: "community"
-},
-{
-icon: "⚡",
-title: "Energy Medicine & Peer Support Fusion",
-description: `Combine traditional peer support with energy healing modalities like Reiki, acupressure, and breathwork. Train peers in both psychological support and energy healing to offer holistic crisis intervention and ongoing support.`,
-potential: "Revenue potential: $55K-320K annually through healing sessions ($80-200), training certifications ($800-3K), retreat intensives ($300-1500), and corporate wellness contracts ($8K-40K).",
-type: "healing"
-}
-];
-
-// Select 3 opportunities that best match the group's strengths
-let selectedOpportunities = [];
-
-// Smart matching based on intelligences and superpowers
-if (topIntelligences.some(([type]) => ['visualSpatial', 'bodilyKinesthetic'].includes(type))) {
-selectedOpportunities.push(opportunityPool.find(o => o.type === 'arts') || opportunityPool[0]);
-}
-if (topIntelligences.some(([type]) => ['logicalMath', 'existential'].includes(type))) {
-selectedOpportunities.push(opportunityPool.find(o => o.type === 'technology') || opportunityPool[2]);
-}
-if (topIntelligences.some(([type]) => ['interpersonal', 'intrapersonal'].includes(type))) {
-selectedOpportunities.push(opportunityPool.find(o => o.type === 'community') || opportunityPool[8]);
-}
-
-// Fill remaining slots with diverse options
-while (selectedOpportunities.length < 3) {
-const remaining = opportunityPool.filter(o => !selectedOpportunities.includes(o));
-selectedOpportunities.push(remaining[Math.floor(Math.random() * remaining.length)]);
-}
-
-// Add team assignments to each opportunity
-return selectedOpportunities.map(opp => ({
-...opp,
-assignments: createTaskAssignments(participants, [topIntelligences[0][0], topIntelligences[1][0]])
-}));
-}
-
-function createTaskAssignments(participants, preferredIntelligences) {
-const assignments = [];
-const roles = [
-'Lead Visionary & Strategy',
-'Client Relations & Sales', 
-'Content Development & Training',
-'Operations & Systems',
-'Marketing & Community Building',
-'Financial Management',
-'Technology & Innovation',
-'Quality Assurance & Support'
-];
-
-// Assign roles based on intelligence strengths and superpowers
-participants.forEach((participant, index) => {
-const topIntelligence = Object.entries(participant.intelligenceScores)
-.sort(([,a], [,b]) => b - a)[0];
-const primarySuperpower = superpowers.find(s => s.id === participant.selectedSuperpowers[0]);
-
-let assignedRole = roles[index % roles.length];
-let roleDescription = '';
-
-// Customize role based on strengths
-if (topIntelligence[0] === 'interpersonal') {
-assignedRole = 'Client Relations & Community Building';
-roleDescription = 'Build relationships with clients and foster community connections using your People Smart gifts.';
-} else if (topIntelligence[0] === 'linguistic') {
-assignedRole = 'Content Development & Marketing';
-roleDescription = 'Create compelling content, training materials, and marketing messages using your Word Smart abilities.';
-} else if (topIntelligence[0] === 'logicalMath') {
-assignedRole = 'Operations & Financial Management';
-roleDescription = 'Handle systems, processes, and financial planning using your Logic Smart strengths.';
-} else if (topIntelligence[0] === 'visualSpatial') {
-assignedRole = 'Design & Technology Innovation';
-roleDescription = 'Lead visual design, user experience, and technology development using your Picture Smart talents.';
-} else if (topIntelligence[0] === 'existential') {
-assignedRole = 'Vision & Strategy Leadership';
-roleDescription = 'Guide overall vision and strategic direction using your Meaning Smart insights.';
-} else {
-roleDescription = `Apply your ${intelligenceTypes[topIntelligence[0]].name} and ${primarySuperpower ? primarySuperpower.name : 'unique abilities'} to drive success.`;
-}
-
-assignments.push({
-person: participant.name,
-role: assignedRole,
-description: roleDescription,
-superpower: primarySuperpower ? primarySuperpower.name : 'Unique Contributor',
-strength: intelligenceTypes[topIntelligence[0]].name
-});
-});
-
-return assignments;
-}
-
-function displayBusinessOpportunities(opportunities, hubNumber) {
-const container = document.getElementById('opportunity-cards');
-container.innerHTML = '';
-
-// Add hub-specific header
-const hubHeader = document.createElement('div');
-hubHeader.innerHTML = `<h4 style="color: #ff6b6b; margin-bottom: 20px; text-align: center;">💡 Hub ${hubNumber} Entrepreneurial Opportunities</h4>`;
-container.appendChild(hubHeader);
-
-opportunities.forEach((opp, index) => {
-const card = document.createElement('div');
-card.className = 'opportunity-card';
-card.innerHTML = `
-<div class="opportunity-title">
-${opp.icon} ${opp.title}
-</div>
-<div class="opportunity-desc">
-${opp.description}
-</div>
-<div class="opportunity-potential">
-<strong>💰 Business Potential:</strong><br>
-${opp.potential}
-</div>
-<div class="team-assignments">
-<h4>👥 Hub ${hubNumber} Team Role Assignments:</h4>
-${opp.assignments.map(assignment => `
-<div class="assignment-item">
-<div class="assignment-person">${assignment.person}</div>
-<div class="assignment-role"><strong>Role:</strong> ${assignment.role}</div>
-<div class="assignment-role">${assignment.description}</div>
-</div>
-`).join('')}
-</div>
-`;
-
-card.addEventListener('click', () => {
-card.style.transform = 'scale(1.02)';
-setTimeout(() => card.style.transform = 'none', 200);
-});
-
-container.appendChild(card);
-});
-}
-
-async function testAddParticipant() {
-if (!assessmentData.sessionId) {
-alert('No active session');
-return;
-}
-
-try {
-const hubNumber = Math.floor(Math.random() * 25) + 1;
-const testParticipant = {
-name: `TestUser${Math.floor(Math.random() * 1000)}`,
-hubNumber: hubNumber.toString(),
-intelligenceScores: {
-linguistic: 4.2,
-logicalMath: 3.1,
-musical: 3.8,
-bodilyKinesthetic: 2.9,
-visualSpatial: 4.5,
-interpersonal: 4.0,
-intrapersonal: 3.7,
-naturalistic: 3.2,
-existential: 4.1
-},
-selectedSuperpowers: ['meaningMaker', 'hopeDealer', 'visionary'],
-visionStatement: 'help others discover their hidden potential',
-timestamp: Date.now()
-};
-
-// Save to Firebase if available
-if (firebaseAvailable && database) {
-try {
-await database.ref(`sessions/${assessmentData.sessionId}/participants/${testParticipant.name}`).set({
-...testParticipant,
-timestamp: firebase.database.ServerValue.TIMESTAMP
-});
-console.log('✅ Test participant added to Firebase');
-} catch (error) {
-console.warn('⚠ Firebase test add failed:', error);
-}
-}
-
-// Always save to localStorage
-const sessionKey = `session_${assessmentData.sessionId}`;
-let sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{"participants": {}}');
-if (!sessionData.participants) sessionData.participants = {};
-
-sessionData.participants[testParticipant.name] = testParticipant;
-sessionData.lastUpdated = Date.now();
-localStorage.setItem(sessionKey, JSON.stringify(sessionData));
-
-console.log(`✅ Added test participant: ${testParticipant.name} to Hub ${hubNumber}`);
-} catch (error) {
-console.error('Error adding test participant:', error);
-alert('Failed to add test participant.');
-}
-}
-
-function backToResults() {
-showStep('results');
-}
-
-function downloadResults() {
-try {
-const results = {
-name: assessmentData.participantName,
-hubNumber: assessmentData.hubNumber,
-intelligenceScores: assessmentData.intelligenceScores,
-selectedSuperpowers: assessmentData.selectedSuperpowers,
-visionStatement: assessmentData.visionStatement,
-sessionId: assessmentData.sessionId || 'individual',
-timestamp: new Date().toISOString()
-};
-
-const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = `neurodiversity-constellation-${assessmentData.participantName}-hub${assessmentData.hubNumber}.json`;
-a.click();
-URL.revokeObjectURL(url);
-} catch (error) {
-console.error('Error downloading results:', error);
-alert('Failed to download results.');
-}
-}
-
-function shareResults() {
-try {
-const giftStatement = document.getElementById('gift-statement').textContent;
-const text = `I just discovered my Neurodiversity Gift Constellation! ${giftStatement}`;
-
-if (navigator.share) {
-navigator.share({
-title: 'My Neurodiversity Gift Constellation',
-text: text
-});
-} else {
-navigator.clipboard.writeText(text).then(() => {
-alert('Constellation profile copied to clipboard!');
-}).catch(() => {
-// Fallback for older browsers
-const textArea = document.createElement('textarea');
-textArea.value = text;
-document.body.appendChild(textArea);
-textArea.select();
-document.execCommand('copy');
-document.body.removeChild(textArea);
-alert('Constellation profile copied to clipboard!');
-});
-}
-} catch (error) {
-console.error('Error sharing results:', error);
-alert('Failed to share results.');
-}
-}
-
-async function exportGroupData() {
-if (!assessmentData.sessionId) return;
-
-try {
-let participants = [];
-
-// Try Firebase first
-if (firebaseAvailable && database) {
-try {
-const snapshot = await database.ref(`sessions/${assessmentData.sessionId}/participants`).once('value');
-participants = Object.values(snapshot.val() || {});
-} catch (error) {
-console.warn('⚠ Firebase export failed:', error);
-}
-}
-
-// Fallback to localStorage
-if (participants.length === 0) {
-const sessionKey = `session_${assessmentData.sessionId}`;
-const sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{}');
-participants = Object.values(sessionData.participants || {});
-}
-
-const exportData = {
-sessionId: assessmentData.sessionId,
-timestamp: new Date().toISOString(),
-participants: participants,
-summary: {
-participantCount: participants.length,
-exportedBy: assessmentData.participantName,
-connectionType: firebaseAvailable ? 'Firebase + localStorage' : 'localStorage only'
-}
-};
-
-const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
-const url = URL.createObjectURL(blob);
-const a = document.createElement('a');
-a.href = url;
-a.download = `collective-genius-session-${assessmentData.sessionId}.json`;
-a.click();
-URL.revokeObjectURL(url);
-} catch (error) {
-console.error('Error exporting group data:', error);
-alert('Failed to export group data.');
-}
-}
-
-function restart() {
-// Clean up all listeners and polling
-cleanupListeners();
-
-// Reset state
-assessmentData = {
-participantName: '',
-hubNumber: '',
-intelligenceScores: {},
-selectedSuperpowers: [],
-visionStatement: '',
-isGroupSession: false,
-sessionId: null,
-isHost: false,
-currentQuestion: 0,
-responses: []
-};
-showStep('welcome');
-}
-
-// Event listeners
-document.addEventListener('DOMContentLoaded', function() {
-const nameInput = document.getElementById('participant-name');
-const hubSelect = document.getElementById('hub-number');
-
-function checkNameAndHub() {
-const nameValid = nameInput.value.trim().length > 0;
-const hubValid = hubSelect.value !== '';
-document.getElementById('name-next').disabled = !(nameValid && hubValid);
-}
-
-if (nameInput) {
-nameInput.addEventListener('input', checkNameAndHub);
-}
-
-if (hubSelect) {
-hubSelect.addEventListener('change', checkNameAndHub);
-}
-
-const joinCodeInput = document.getElementById('join-code');
-if (joinCodeInput) {
-joinCodeInput.addEventListener('input', function() {
-this.value = this.value.toUpperCase().substring(0, 6);
-});
-}
-
-// Handle page visibility changes for better resource management
-document.addEventListener('visibilitychange', function() {
-if (document.hidden) {
-// Page is hidden, reduce polling frequency or pause
-if (dashboardPolling) {
-clearInterval(dashboardPolling);
-}
-} else {
-// Page is visible again, resume normal operation
-if (document.getElementById('group-dashboard').classList.contains('active') && assessmentData.sessionId) {
-if (!firebaseAvailable) {
-setupLocalPolling();
-}
-}
-}
-});
-
-// Handle beforeunload for cleanup
-window.addEventListener('beforeunload', function() {
-cleanupListeners();
-});
-});
-</script>
-</body>
-</html><!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
@@ -903,6 +233,12 @@ background: #ff6b6b;
 font-weight: bold;
 }
 
+.hub-label {
+font-size: 0.8em;
+opacity: 0.8;
+margin-left: 5px;
+}
+
 .constellation-container {
 display: flex;
 gap: 30px;
@@ -950,17 +286,6 @@ color: #ff6b6b;
 font-size: 1.1em;
 }
 
-.collective-constellation {
-text-align: center;
-margin: 30px 0;
-}
-
-.collective-constellation .constellation-chart {
-width: 100%;
-max-width: 600px;
-margin: 0 auto;
-}
-
 .star-glow {
 animation: gentleGlow 3s ease-in-out infinite;
 }
@@ -988,31 +313,10 @@ position: relative;
 overflow: hidden;
 }
 
-.opportunity-card::before {
-content: '';
-position: absolute;
-top: -50%;
-left: -50%;
-width: 200%;
-height: 200%;
-background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent);
-transform: rotate(45deg);
-transition: all 0.3s ease;
-}
-
 .opportunity-card:hover {
 transform: translateY(-8px);
 box-shadow: 0 15px 40px rgba(255,107,107,0.4);
 border-color: #ff6b6b;
-}
-
-.opportunity-card:hover::before {
-animation: shimmer 0.8s ease-in-out;
-}
-
-@keyframes shimmer {
-0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
 }
 
 .opportunity-title {
@@ -1107,11 +411,6 @@ color: #27ae60;
 .status-local {
 border-left: 4px solid #f39c12;
 color: #f39c12;
-}
-
-.status-error {
-border-left: 4px solid #e74c3c;
-color: #e74c3c;
 }
 
 textarea {
@@ -1214,24 +513,6 @@ width: 100%;
 height: 300px;
 }
 }
-
-@media (max-width: 480px) {
-.gift-mapper {
-padding: 15px;
-margin: 5px;
-}
-h1 {
-font-size: 2em;
-}
-h2 {
-font-size: 1.5em;
-}
-.session-code {
-font-size: 1.2em;
-letter-spacing: 1px;
-padding: 10px 15px;
-}
-}
 </style>
 </head>
 <body>
@@ -1288,7 +569,7 @@ Others can join by clicking "Join Session" and entering this code
 <button class="btn" onclick="viewGroupDashboard()" style="background: #9b59b6;">👥 View Dashboard</button>
 </div>
 
-<!-- Name Collection -->
+<!-- Name Collection with Hub Selection -->
 <div class="step" id="name-step">
 <h2>Conference Setup</h2>
 <div class="intro-text">
@@ -1310,6 +591,21 @@ Others can join by clicking "Join Session" and entering this code
 <option value="8">Hub 8</option>
 <option value="9">Hub 9</option>
 <option value="10">Hub 10</option>
+<option value="11">Hub 11</option>
+<option value="12">Hub 12</option>
+<option value="13">Hub 13</option>
+<option value="14">Hub 14</option>
+<option value="15">Hub 15</option>
+<option value="16">Hub 16</option>
+<option value="17">Hub 17</option>
+<option value="18">Hub 18</option>
+<option value="19">Hub 19</option>
+<option value="20">Hub 20</option>
+<option value="21">Hub 21</option>
+<option value="22">Hub 22</option>
+<option value="23">Hub 23</option>
+<option value="24">Hub 24</option>
+<option value="25">Hub 25</option>
 </select>
 </div>
 </div>
@@ -1454,12 +750,13 @@ Others can join by clicking "Join Session" and entering this code
 
 <!-- Entrepreneurial Opportunities -->
 <div id="entrepreneurial-opportunities" style="display: none; margin-top: 40px;">
-<h3>🚀 3 Entrepreneurial Opportunities From Your Collective Genius</h3>
+<h3>🚀 Hub Business Opportunities</h3>
+<div id="hub-info" style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 10px;"></div>
 <div class="opportunity-grid" id="opportunity-cards"></div>
 </div>
 
 <div style="margin-top: 30px;">
-<button class="btn" onclick="generateBusinessOpportunities()" id="generate-opportunities-btn" style="display: none; background: #e74c3c;">🚀 Generate Business Opportunities</button>
+<button class="btn" onclick="generateBusinessOpportunities()" id="generate-opportunities-btn" style="background: #e74c3c;">🚀 Generate Business Opportunities</button>
 <button class="btn" onclick="exportGroupData()">📊 Export Data</button>
 <button class="btn" onclick="backToResults()">👤 My Profile</button>
 <button class="btn" onclick="testAddParticipant()" style="background: #95a5a6;">🧪 Add Test Participant</button>
@@ -1477,7 +774,7 @@ Others can join by clicking "Join Session" and entering this code
 </div>
 
 <script>
-// Firebase Configuration - Replace with your actual config
+// Firebase Configuration
 const firebaseConfig = {
 apiKey: "AIzaSyCgNBubK8yce1BOZ-opG3WiYtddSvoENME",
 authDomain: "neurodiversity-giftmapper.firebaseapp.com",
@@ -1585,6 +882,799 @@ const superpowers = [
 {
 id: "crisisNavigator",
 name: "Crisis Navigator",
-icon: "🧭 ",
+icon: "🧭",
 description: "I help others navigate life storms and find their way through chaos"
 },
+{
+id: "meaningMaker",
+name: "Meaning Maker", 
+icon: "🎯",
+description: "I help people find purpose and significance in their experiences"
+},
+{
+id: "hopeDealer",
+name: "Hope Dealer",
+icon: "✨",
+description: "I help people see possibilities they can't see for themselves"
+},
+{
+id: "empathyBridge",
+name: "Empathy Bridge",
+icon: "🌉",
+description: "I connect people's hearts and help them understand each other"
+},
+{
+id: "realityTranslator",
+name: "Reality Translator",
+icon: "🔮",
+description: "I help make sense of confusing or overwhelming experiences"
+},
+{
+id: "resilienceTeacher",
+name: "Resilience Teacher",
+icon: "💪",
+description: "I show others how to bounce back from setbacks"
+},
+{
+id: "visionKeeper",
+name: "Vision Keeper",
+icon: "👁️",
+description: "I help people see the bigger picture and future possibilities"
+},
+{
+id: "healingWitness",
+name: "Healing Witness",
+icon: "👂",
+description: "I create safe spaces for people to share their truth"
+},
+{
+id: "courageBuilder",
+name: "Courage Builder",
+icon: "🦁",
+description: "I help people find the strength to face their fears"
+},
+{
+id: "connectionWeaver",
+name: "Connection Weaver",
+icon: "🕸️",
+description: "I help isolated people find community and belonging"
+}
+];
+
+// Questions for assessment
+const allQuestions = [];
+Object.keys(intelligenceTypes).forEach(type => {
+intelligenceTypes[type].questions.forEach(question => {
+allQuestions.push({ type, question });
+});
+});
+
+// Step navigation functions
+function showStep(stepId) {
+document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+document.getElementById(stepId).classList.add('active');
+}
+
+function showOptions() {
+showStep('options');
+}
+
+// Session management
+function generateSessionCode() {
+return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+async function createSession() {
+try {
+showStep('loading');
+document.getElementById('loading-message').textContent = 'Creating session...';
+
+const sessionCode = generateSessionCode();
+assessmentData.sessionId = sessionCode;
+assessmentData.isHost = true;
+assessmentData.isGroupSession = true;
+
+// Try Firebase first
+if (firebaseAvailable && database) {
+try {
+await database.ref(`sessions/${sessionCode}`).set({
+created: Date.now(),
+host: true,
+participants: {}
+});
+console.log('✅ Session created in Firebase:', sessionCode);
+} catch (error) {
+console.warn('⚠ Firebase session creation failed:', error);
+// Fallback to localStorage
+localStorage.setItem(`session_${sessionCode}`, JSON.stringify({
+created: Date.now(),
+participants: {}
+}));
+}
+} else {
+// Use localStorage only
+localStorage.setItem(`session_${sessionCode}`, JSON.stringify({
+created: Date.now(),
+participants: {}
+}));
+}
+
+document.getElementById('created-session-code').textContent = sessionCode;
+
+updateConnectionStatus();
+showStep('session-created');
+} catch (error) {
+console.error('Session creation error:', error);
+alert('Failed to create session. Please try again.');
+showStep('options');
+}
+}
+
+async function joinSession() {
+const code = document.getElementById('join-code').value.trim().toUpperCase();
+if (!code) return;
+
+try {
+showStep('loading');
+document.getElementById('loading-message').textContent = 'Joining session...';
+
+// Try Firebase first
+let sessionExists = false;
+if (firebaseAvailable && database) {
+try {
+const snapshot = await database.ref(`sessions/${code}`).once('value');
+sessionExists = snapshot.exists();
+} catch (error) {
+console.warn('⚠ Firebase session check failed:', error);
+}
+}
+
+// Fallback to localStorage
+if (!sessionExists) {
+const sessionData = localStorage.getItem(`session_${code}`);
+sessionExists = sessionData !== null;
+}
+
+if (sessionExists) {
+assessmentData.sessionId = code;
+assessmentData.isHost = false;
+assessmentData.isGroupSession = true;
+updateConnectionStatus();
+showStep('name-step');
+} else {
+alert('Session not found. Please check the code and try again.');
+showStep('options');
+}
+} catch (error) {
+console.error('Join session error:', error);
+alert('Failed to join session. Please try again.');
+showStep('options');
+}
+}
+
+function startIndividual() {
+assessmentData.isGroupSession = false;
+showStep('name-step');
+}
+
+function proceedToAssessment() {
+showStep('name-step');
+}
+
+// Assessment flow
+function startAssessment() {
+const name = document.getElementById('participant-name').value.trim();
+const hub = document.getElementById('hub-number').value;
+if (!name || !hub) return;
+
+assessmentData.participantName = name;
+assessmentData.hubNumber = hub;
+assessmentData.currentQuestion = 0;
+assessmentData.responses = [];
+
+// Initialize intelligence scores
+Object.keys(intelligenceTypes).forEach(type => {
+assessmentData.intelligenceScores[type] = 0;
+});
+
+showStep('assessment');
+displayQuestion();
+}
+
+function displayQuestion() {
+const question = allQuestions[assessmentData.currentQuestion];
+const container = document.getElementById('assessment-content');
+const progress = ((assessmentData.currentQuestion + 1) / allQuestions.length) * 100;
+document.getElementById('progress-bar').style.width = progress + '%';
+
+container.innerHTML = `
+<div class="question-container">
+<div class="question">Question ${assessmentData.currentQuestion + 1} of ${allQuestions.length}</div>
+<div class="question" style="font-size: 1.3em; margin: 20px 0;">${question.question}</div>
+<div class="rating-scale">
+<div class="rating-option" data-value="1">Not me</div>
+<div class="rating-option" data-value="2">Rarely me</div>
+<div class="rating-option" data-value="3">Sometimes me</div>
+<div class="rating-option" data-value="4">Often me</div>
+<div class="rating-option" data-value="5">Totally me</div>
+</div>
+</div>
+`;
+
+// Add click handlers
+document.querySelectorAll('.rating-option').forEach(option => {
+option.addEventListener('click', function() {
+document.querySelectorAll('.rating-option').forEach(opt => opt.classList.remove('selected'));
+this.classList.add('selected');
+document.getElementById('next-btn').disabled = false;
+});
+});
+
+document.getElementById('next-btn').disabled = true;
+}
+
+function nextQuestion() {
+const selected = document.querySelector('.rating-option.selected');
+if (!selected) return;
+
+const question = allQuestions[assessmentData.currentQuestion];
+const score = parseInt(selected.dataset.value);
+assessmentData.responses.push({ question: question.question, score, type: question.type });
+assessmentData.intelligenceScores[question.type] += score;
+
+assessmentData.currentQuestion++;
+
+if (assessmentData.currentQuestion < allQuestions.length) {
+displayQuestion();
+} else {
+showStep('superpowers');
+displaySuperpowers();
+}
+}
+
+function displaySuperpowers() {
+const container = document.getElementById('superpower-grid');
+container.innerHTML = superpowers.map(power => `
+<div class="superpower-card" data-id="${power.id}">
+<span class="superpower-icon">${power.icon}</span>
+<div class="superpower-name">${power.name}</div>
+<div class="superpower-desc">${power.description}</div>
+</div>
+`).join('');
+
+// Add click handlers
+document.querySelectorAll('.superpower-card').forEach(card => {
+card.addEventListener('click', function() {
+const isSelected = this.classList.contains('selected');
+const selectedCount = document.querySelectorAll('.superpower-card.selected').length;
+
+if (isSelected) {
+this.classList.remove('selected');
+} else if (selectedCount < 3) {
+this.classList.add('selected');
+}
+
+const newSelectedCount = document.querySelectorAll('.superpower-card.selected').length;
+document.getElementById('superpower-next').disabled = newSelectedCount === 0;
+});
+});
+}
+
+function nextFromSuperpowers() {
+const selectedCards = document.querySelectorAll('.superpower-card.selected');
+assessmentData.selectedSuperpowers = Array.from(selectedCards).map(card => card.dataset.id);
+showStep('vision');
+}
+
+async function generateResults() {
+assessmentData.visionStatement = document.getElementById('vision-input').value;
+
+// Save to session if group session
+if (assessmentData.isGroupSession && assessmentData.sessionId) {
+try {
+const participantData = {
+name: assessmentData.participantName,
+hubNumber: assessmentData.hubNumber,
+intelligenceScores: assessmentData.intelligenceScores,
+selectedSuperpowers: assessmentData.selectedSuperpowers,
+visionStatement: assessmentData.visionStatement,
+timestamp: Date.now()
+};
+
+// Try Firebase first
+if (firebaseAvailable && database) {
+try {
+await database.ref(`sessions/${assessmentData.sessionId}/participants/${assessmentData.participantName}`).set(participantData);
+console.log('✅ Participant data saved to Firebase');
+} catch (error) {
+console.warn('⚠ Firebase save failed:', error);
+}
+}
+
+// Always save to localStorage as backup
+const sessionKey = `session_${assessmentData.sessionId}`;
+const sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{"participants": {}}');
+sessionData.participants[assessmentData.participantName] = participantData;
+localStorage.setItem(sessionKey, JSON.stringify(sessionData));
+
+} catch (error) {
+console.error('Error saving participant data:', error);
+}
+}
+
+// Generate individual constellation
+createIndividualConstellation();
+displayResults();
+showStep('results');
+
+// Show group dashboard button if in group session
+if (assessmentData.isGroupSession) {
+document.getElementById('group-dashboard-btn').style.display = 'inline-block';
+}
+}
+
+function createIndividualConstellation() {
+const svg = document.getElementById('individual-constellation');
+const starsGroup = document.getElementById('constellation-stars');
+const linesGroup = document.getElementById('constellation-lines');
+const labelsGroup = document.getElementById('constellation-labels');
+
+// Clear existing content
+starsGroup.innerHTML = '';
+linesGroup.innerHTML = '';
+labelsGroup.innerHTML = '';
+
+const center = { x: 200, y: 200 };
+const radius = 120;
+const intelligenceKeys = Object.keys(intelligenceTypes);
+
+// Create stars for each intelligence
+intelligenceKeys.forEach((type, index) => {
+const angle = (index / intelligenceKeys.length) * 2 * Math.PI;
+const score = assessmentData.intelligenceScores[type] || 0;
+const intensity = Math.max(0.3, score / 10); // Minimum visibility
+
+const x = center.x + Math.cos(angle) * radius;
+const y = center.y + Math.sin(angle) * radius;
+const starSize = 4 + intensity * 8;
+
+// Create star
+const star = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+star.setAttribute('cx', x);
+star.setAttribute('cy', y);
+star.setAttribute('r', starSize);
+star.setAttribute('fill', `hsl(${index * 40}, 70%, ${50 + intensity * 30}%)`);
+star.setAttribute('class', 'star-glow');
+starsGroup.appendChild(star);
+
+// Create label
+const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+label.setAttribute('x', x + (x > center.x ? 15 : -15));
+label.setAttribute('y', y + 5);
+label.setAttribute('fill', 'white');
+label.setAttribute('font-size', '10');
+label.setAttribute('text-anchor', x > center.x ? 'start' : 'end');
+label.textContent = intelligenceTypes[type].name;
+labelsGroup.appendChild(label);
+
+// Connect strongest stars
+if (intensity > 0.6) {
+const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+line.setAttribute('x1', center.x);
+line.setAttribute('y1', center.y);
+line.setAttribute('x2', x);
+line.setAttribute('y2', y);
+line.setAttribute('stroke', `hsl(${index * 40}, 50%, 60%)`);
+line.setAttribute('stroke-width', '2');
+line.setAttribute('opacity', '0.6');
+linesGroup.appendChild(line);
+}
+});
+}
+
+function displayResults() {
+// Find strongest intelligence
+const strongestType = Object.keys(assessmentData.intelligenceScores).reduce((a, b) => 
+assessmentData.intelligenceScores[a] > assessmentData.intelligenceScores[b] ? a : b
+);
+
+// Generate gift statement
+const giftStatements = {
+linguistic: "You have the gift of translating complex emotions into healing words",
+logicalMath: "You have the gift of finding patterns and solutions in chaos",
+musical: "You have the gift of creating harmony from discord",
+bodilyKinesthetic: "You have the gift of embodied wisdom and intuitive knowing",
+visualSpatial: "You have the gift of seeing beauty and possibility in all things",
+interpersonal: "You have the gift of heart-to-heart connection and understanding",
+intrapersonal: "You have the gift of deep self-knowledge and inner wisdom",
+naturalistic: "You have the gift of finding healing and truth in nature's rhythms",
+existential: "You have the gift of helping others find meaning in their journey"
+};
+
+document.getElementById('gift-statement').textContent = giftStatements[strongestType];
+document.getElementById('brightest-star').textContent = intelligenceTypes[strongestType].name;
+document.getElementById('constellation-type').textContent = "Peer Healer";
+document.getElementById('cosmic-power').textContent = "Transformative";
+document.getElementById('universe-impact').textContent = "Infinite";
+
+// Display primary superpower
+if (assessmentData.selectedSuperpowers.length > 0) {
+const primarySuperpower = superpowers.find(s => s.id === assessmentData.selectedSuperpowers[0]);
+document.getElementById('primary-superpower').textContent = `${primarySuperpower.icon} ${primarySuperpower.name}`;
+}
+
+// Display vision
+document.getElementById('user-vision').textContent = assessmentData.visionStatement || "Creating positive change in the world";
+}
+
+// Group Dashboard Functions
+async function viewGroupDashboard() {
+if (!assessmentData.sessionId) {
+alert('No active session found.');
+return;
+}
+
+showStep('group-dashboard');
+document.getElementById('display-session-code').textContent = assessmentData.sessionId;
+
+// Show opportunities button if we have hub info
+if (assessmentData.hubNumber) {
+document.getElementById('generate-opportunities-btn').style.display = 'inline-block';
+}
+
+startDashboardPolling();
+}
+
+function startDashboardPolling() {
+// Clear existing polling
+if (dashboardPolling) {
+clearInterval(dashboardPolling);
+}
+
+// Update immediately
+updateDashboard();
+
+// Poll every 3 seconds for updates
+dashboardPolling = setInterval(updateDashboard, 3000);
+}
+
+async function updateDashboard() {
+try {
+let allParticipants = [];
+
+// Try Firebase first
+if (firebaseAvailable && database) {
+try {
+const snapshot = await database.ref(`sessions/${assessmentData.sessionId}/participants`).once('value');
+allParticipants = Object.values(snapshot.val() || {});
+} catch (error) {
+console.warn('⚠ Firebase fetch failed:', error);
+}
+}
+
+// Fallback to localStorage
+if (allParticipants.length === 0) {
+const sessionKey = `session_${assessmentData.sessionId}`;
+const sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{"participants": {}}');
+allParticipants = Object.values(sessionData.participants || {});
+}
+
+updateParticipantList(allParticipants);
+updateLiveConstellation(allParticipants);
+} catch (error) {
+console.error('Dashboard update error:', error);
+}
+}
+
+function updateParticipantList(participantList) {
+document.getElementById('participant-count').textContent = participantList.length;
+
+const participantTags = document.getElementById('all-participant-tags');
+if (participantList.length === 0) {
+participantTags.innerHTML = '<div style="opacity: 0.6;">Waiting for participants to join...</div>';
+return;
+}
+
+// Group participants by hub
+const hubGroups = {};
+participantList.forEach(participant => {
+const hub = participant.hubNumber || 'No Hub';
+if (!hubGroups[hub]) hubGroups[hub] = [];
+hubGroups[hub].push(participant);
+});
+
+// Display participants grouped by hub
+let html = '';
+Object.keys(hubGroups).sort((a, b) => {
+if (a === 'No Hub') return 1;
+if (b === 'No Hub') return -1;
+return parseInt(a) - parseInt(b);
+}).forEach(hubNumber => {
+const participants = hubGroups[hubNumber];
+html += `<div style="margin: 15px 0;">`;
+html += `<div style="font-weight: bold; margin-bottom: 8px; color: #ff6b6b;">Hub ${hubNumber} (${participants.length})</div>`;
+html += `<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-left: 15px;">`;
+participants.forEach(participant => {
+const isMe = participant.name === assessmentData.participantName;
+html += `<div class="participant-tag ${isMe ? 'me' : ''}">${participant.name}</div>`;
+});
+html += `</div></div>`;
+});
+
+participantTags.innerHTML = html;
+}
+
+function updateLiveConstellation(participants) {
+const container = document.getElementById('live-constellation-participants');
+const connectionsContainer = document.getElementById('live-constellation-connections');
+const labelsContainer = document.getElementById('live-constellation-labels');
+
+// Clear existing content
+container.innerHTML = '';
+connectionsContainer.innerHTML = '';
+labelsContainer.innerHTML = '';
+
+if (participants.length === 0) return;
+
+const svgWidth = 600;
+const svgHeight = 400;
+const hubColors = [
+'#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd',
+'#00d2d3', '#ff9f43', '#10ac84', '#ee5a24', '#0abde3', '#3867d6', '#8c7ae6', '#a55eea',
+'#fd79a8', '#fdcb6e', '#6c5ce7', '#fd79a8', '#e17055', '#00b894', '#0984e3', '#6c5ce7', '#a29bfe'
+];
+
+// Group participants by hub
+const hubGroups = {};
+participants.forEach(participant => {
+const hub = participant.hubNumber || 'general';
+if (!hubGroups[hub]) hubGroups[hub] = [];
+hubGroups[hub].push(participant);
+});
+
+let participantIndex = 0;
+Object.keys(hubGroups).forEach((hubNumber, hubIndex) => {
+const hubParticipants = hubGroups[hubNumber];
+const hubColor = hubColors[hubIndex % hubColors.length];
+const hubRadius = 120;
+const centerX = 150 + (hubIndex % 3) * 150;
+const centerY = 150 + Math.floor(hubIndex / 3) * 100;
+
+// Draw hub connections between participants in same hub
+if (hubParticipants.length > 1) {
+hubParticipants.forEach((participant1, i) => {
+hubParticipants.slice(i + 1).forEach(participant2 => {
+const angle1 = (i / hubParticipants.length) * 2 * Math.PI;
+const angle2 = ((i + 1) / hubParticipants.length) * 2 * Math.PI;
+const x1 = centerX + Math.cos(angle1) * 40;
+const y1 = centerY + Math.sin(angle1) * 40;
+const x2 = centerX + Math.cos(angle2) * 40;
+const y2 = centerY + Math.sin(angle2) * 40;
+
+const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+line.setAttribute('x1', x1);
+line.setAttribute('y1', y1);
+line.setAttribute('x2', x2);
+line.setAttribute('y2', y2);
+line.setAttribute('stroke', hubColor);
+line.setAttribute('stroke-width', '2');
+line.setAttribute('opacity', '0.4');
+connectionsContainer.appendChild(line);
+});
+});
+}
+
+// Draw participants in hub
+hubParticipants.forEach((participant, i) => {
+const angle = (i / Math.max(hubParticipants.length, 1)) * 2 * Math.PI;
+const x = centerX + Math.cos(angle) * 40;
+const y = centerY + Math.sin(angle) * 40;
+
+// Participant circle
+const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+circle.setAttribute('cx', x);
+circle.setAttribute('cy', y);
+circle.setAttribute('r', '8');
+circle.setAttribute('fill', hubColor);
+circle.setAttribute('stroke', 'white');
+circle.setAttribute('stroke-width', '2');
+circle.setAttribute('class', 'star-glow');
+container.appendChild(circle);
+
+// Participant label
+const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+label.setAttribute('x', x);
+label.setAttribute('y', y - 15);
+label.setAttribute('fill', 'white');
+label.setAttribute('font-size', '10');
+label.setAttribute('text-anchor', 'middle');
+label.textContent = participant.name;
+labelsContainer.appendChild(label);
+});
+
+// Hub label
+const hubLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+hubLabel.setAttribute('x', centerX);
+hubLabel.setAttribute('y', centerY + 70);
+hubLabel.setAttribute('fill', hubColor);
+hubLabel.setAttribute('font-size', '12');
+hubLabel.setAttribute('text-anchor', 'middle');
+hubLabel.setAttribute('font-weight', 'bold');
+hubLabel.textContent = `Hub ${hubNumber}`;
+labelsContainer.appendChild(hubLabel);
+});
+}
+
+async function generateBusinessOpportunities() {
+try {
+let allParticipants = [];
+
+// Try Firebase first
+if (firebaseAvailable && database) {
+try {
+const snapshot = await database.ref(`sessions/${assessmentData.sessionId}/participants`).once('value');
+allParticipants = Object.values(snapshot.val() || {});
+} catch (error) {
+console.warn('⚠ Firebase fetch failed for opportunities:', error);
+}
+}
+
+// Fallback to localStorage
+if (allParticipants.length === 0) {
+const sessionKey = `session_${assessmentData.sessionId}`;
+const sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{"participants": {}}');
+allParticipants = Object.values(sessionData.participants || {});
+}
+
+// Filter participants by current user's hub
+const currentHub = assessmentData.hubNumber;
+const hubParticipants = allParticipants.filter(p => p.hubNumber === currentHub);
+
+if (hubParticipants.length < 2) {
+alert(`Need at least 2 participants in Hub ${currentHub} to generate business opportunities. Currently ${hubParticipants.length} in your hub.`);
+return;
+}
+
+console.log(`🚀 Generating business opportunities for Hub ${currentHub}:`, hubParticipants.map(p => p.name));
+
+// Analyze collective profile
+const collectiveProfile = analyzeCollectiveProfile(hubParticipants);
+const opportunities = createBusinessOpportunities(collectiveProfile, hubParticipants);
+
+displayBusinessOpportunities(opportunities, currentHub);
+document.getElementById('entrepreneurial-opportunities').style.display = 'block';
+} catch (error) {
+console.error('Error generating opportunities:', error);
+alert('Failed to generate business opportunities. Please try again.');
+}
+}
+
+function analyzeCollectiveProfile(participants) {
+// Calculate collective intelligence scores
+const collectiveScores = {};
+Object.keys(intelligenceTypes).forEach(type => {
+const scores = participants.map(p => p.intelligenceScores[type] || 0);
+collectiveScores[type] = scores.reduce((a, b) => a + b) / scores.length;
+});
+
+// Analyze superpowers
+const allSuperpowers = participants.flatMap(p => p.selectedSuperpowers || []);
+const superpowerCounts = {};
+allSuperpowers.forEach(power => {
+superpowerCounts[power] = (superpowerCounts[power] || 0) + 1;
+});
+
+// Find top intelligences
+const topIntelligences = Object.keys(collectiveScores)
+.sort((a, b) => collectiveScores[b] - collectiveScores[a])
+.slice(0, 3);
+
+// Find top superpowers
+const topSuperpowers = Object.keys(superpowerCounts)
+.sort((a, b) => superpowerCounts[b] - superpowerCounts[a])
+.slice(0, 3);
+
+return {
+participants,
+collectiveScores,
+topIntelligences,
+topSuperpowers,
+superpowerCounts
+};
+}
+
+function createBusinessOpportunities(profile, participants) {
+const { topIntelligences, topSuperpowers } = profile;
+
+// Expanded opportunity pool with innovative peer-driven mental health ventures
+const opportunityPool = [
+{
+icon: "🎨",
+title: "Therapeutic Art Crowdfunding Collective",
+description: "Create crowdfunded art campaigns that fund peer support programs while spreading mental health awareness through powerful visual storytelling.",
+keyStrengths: ["visualSpatial", "interpersonal", "empathyBridge"],
+superpowers: ["meaningMaker", "hopeDealer"],
+revenueModel: "Campaign fees (5-10%), art sales (30% commission), corporate partnerships for branded campaigns",
+potential: "$50K-200K annually per campaign manager"
+},
+{
+icon: "✨",
+title: "Kintsugi Healing Workshop Empire",
+description: "Scale the Japanese art of golden repair as a metaphor for healing trauma, offering workshops to corporations, schools, and healing centers.",
+keyStrengths: ["bodilyKinesthetic", "existential", "visualSpatial"],
+superpowers: ["resilienceTeacher", "meaningMaker"],
+revenueModel: "Workshop fees ($500-2000 per session), facilitator certification ($2000), healing retreat packages",
+potential: "$75K-300K annually with certified facilitator network"
+},
+{
+icon: "🤖",
+title: "Peer Support DAO with AI Fleet",
+description: "Decentralized autonomous organization providing 24/7 crisis support through AI-assisted peer counselors and rapid-response vehicle network.",
+keyStrengths: ["logicalMath", "interpersonal", "existential"],
+superpowers: ["crisisNavigator", "empathyBridge"],
+revenueModel: "Subscription model ($50-200/month), emergency response fees, insurance partnerships",
+potential: "$500K-2M annually with scale across multiple cities"
+},
+{
+icon: "🌱",
+title: "Neuroplasticity Garden Therapy Centers",
+description: "Combine horticultural therapy with brain training, teaching neuroplasticity through hands-on gardening and plant care experiences.",
+keyStrengths: ["naturalistic", "intrapersonal", "bodilyKinesthetic"],
+superpowers: ["healingWitness", "resilienceTeacher"],
+revenueModel: "Session fees ($75-150), garden memberships ($100-300/month), educational programs",
+potential: "$100K-400K annually per location"
+},
+{
+icon: "🎪",
+title: "Trauma-Informed Circus Arts Collective",
+description: "Use aerial work, acrobatics, and performance to help people reclaim their bodies and build confidence after trauma.",
+keyStrengths: ["bodilyKinesthetic", "interpersonal", "musical"],
+superpowers: ["courageBuilder", "resilienceTeacher"],
+revenueModel: "Class fees ($25-50), performance bookings ($2000-10000), instructor training",
+potential: "$80K-250K annually per studio location"
+},
+{
+icon: "🔮",
+title: "Peer Futures Visualization Studio",
+description: "Use VR/AR technology to help people visualize and practice their recovery goals and future possibilities.",
+keyStrengths: ["visualSpatial", "existential", "logicalMath"],
+superpowers: ["visionKeeper", "hopeDealer"],
+revenueModel: "Session fees ($100-200), technology licensing, corporate wellness partnerships",
+potential: "$150K-500K annually with technology scaling"
+},
+{
+icon: "🎵",
+title: "Biorhythm Sound Healing Cooperative",
+description: "Create personalized therapeutic soundscapes using participants' biological rhythms and emotional patterns.",
+keyStrengths: ["musical", "intrapersonal", "existential"],
+superpowers: ["healingWitness", "empathyBridge"],
+revenueModel: "Custom composition fees ($200-1000), streaming subscriptions ($15/month), live experiences",
+potential: "$60K-180K annually per sound healer"
+},
+{
+icon: "📱",
+title: "Peer Micro-Learning Crisis App",
+description: "30-second peer-taught coping skills delivered through AI-powered micro-learning when people need them most.",
+keyStrengths: ["linguistic", "logicalMath", "interpersonal"],
+superpowers: ["crisisNavigator", "meaningMaker"],
+revenueModel: "Freemium app ($5-15/month premium), enterprise licenses, peer educator royalties",
+potential: "$200K-1M+ annually with viral scaling potential"
+},
+{
+icon: "🏡",
+title: "Intentional Healing Community Network",
+description: "Develop peer-led co-housing communities and retreat centers focused on shared healing and mutual support.",
+keyStrengths: ["interpersonal", "naturalistic", "existential"],
+superpowers: ["connectionWeaver", "healingWitness"],
+revenueModel: "Community membership fees, retreat packages ($500-2000), property development partnerships",
+potential: "$300K-1M+ annually per established community"
+},
+{
+icon: "⚡",
+title: "Energy Medicine & Peer Support Fusion",
+description: "Integrate traditional peer support with energy healing modalities, creating a new category of holistic peer practice.",
+keyStrengths: ["intrapersonal", "existential", "interpersonal"],
+superpowers: ["healingWitness", "resilienceTeacher"],
+revenueModel: "Session fees ($75-200), practitioner certification ($3000), retreat programs",
+potential: "$90K-300K annually per certified practitioner"
+}
