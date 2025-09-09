@@ -439,6 +439,9 @@ try {
 const participantData = {
 name: assessmentData.participantName,
 hubNumber: assessmentData.hubNumber,
+intelligenceScores: assessmentData.intelligenceScores,
+selectedSuperpowers: assessmentData.selectedSuperpowers,
+visionStatement: assessmentData.visionStatement,
 timestamp: Date.now()
 };
 
@@ -464,7 +467,7 @@ console.error('Error saving participant data:', error);
 }
 
 function viewGroupDashboard() {
-alert('Dashboard feature coming soon! For now, your session is active and participants can join.');
+alert('Dashboard feature coming soon! Your assessment data has been saved and you\'re connected with Hub ' + assessmentData.hubNumber + ' for collaborative opportunities.');
 }
 
 function restart() {
