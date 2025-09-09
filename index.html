@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Neurodiversity GiftMapper - Conference Ready</title>
-<!-- Firebase -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
 <style>
@@ -108,6 +107,64 @@ margin: 15px 0;
 letter-spacing: 3px;
 }
 
+.rating-scale {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin: 20px 0;
+flex-wrap: wrap;
+gap: 10px;
+}
+
+.rating-option {
+background: rgba(255,255,255,0.2);
+border: 2px solid transparent;
+border-radius: 50px;
+padding: 10px 20px;
+cursor: pointer;
+transition: all 0.3s ease;
+font-weight: bold;
+min-width: 80px;
+}
+
+.rating-option:hover {
+background: rgba(255,255,255,0.3);
+transform: translateY(-2px);
+}
+
+.rating-option.selected {
+background: #ff6b6b;
+border-color: #fff;
+box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+}
+
+.superpower-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+gap: 15px;
+margin: 20px 0;
+}
+
+.superpower-card {
+background: rgba(255,255,255,0.15);
+border-radius: 12px;
+padding: 20px;
+cursor: pointer;
+transition: all 0.3s ease;
+border: 2px solid transparent;
+text-align: left;
+}
+
+.superpower-card:hover {
+transform: translateY(-3px);
+background: rgba(255,255,255,0.25);
+}
+
+.superpower-card.selected {
+border-color: #ff6b6b;
+background: rgba(255,107,107,0.3);
+}
+
 input[type="text"] {
 background: rgba(255,255,255,0.9);
 color: #333;
@@ -127,6 +184,41 @@ padding: 12px 15px;
 border-radius: 8px;
 font-size: 1em;
 margin: 10px;
+}
+
+textarea {
+width: 100%;
+padding: 15px;
+border-radius: 10px;
+border: none;
+background: rgba(255,255,255,0.9);
+color: #333;
+font-size: 1em;
+min-height: 100px;
+resize: vertical;
+}
+
+.progress-bar {
+background: rgba(255,255,255,0.2);
+border-radius: 10px;
+height: 8px;
+margin: 20px 0;
+overflow: hidden;
+}
+
+.progress-fill {
+background: #ff6b6b;
+height: 100%;
+border-radius: 10px;
+transition: width 0.3s ease;
+}
+
+.vision-box {
+background: rgba(255,255,255,0.1);
+border-radius: 10px;
+padding: 20px;
+margin: 20px 0;
+border-left: 4px solid #ff6b6b;
 }
 
 .loading {
@@ -157,6 +249,17 @@ margin: 10px;
 .btn {
 width: 100%;
 margin: 10px 0;
+}
+.rating-scale {
+flex-direction: column;
+gap: 5px;
+}
+.rating-option {
+width: 100%;
+text-align: center;
+}
+.superpower-grid {
+grid-template-columns: 1fr;
 }
 }
 </style>
@@ -252,16 +355,65 @@ Others can join by clicking "Join Session" and entering this code
 <button class="btn" onclick="startAssessment()" id="name-next" disabled>Continue to Assessment</button>
 </div>
 
-<!-- Simple Success Step -->
-<div class="step" id="success">
-<h2>🎉 Assessment Complete!</h2>
+<!-- Assessment Step -->
+<div class="step" id="assessment">
+<h2>Your Intelligence Constellation Assessment</h2>
+<div class="progress-bar">
+<div class="progress-fill" id="progress-bar" style="width: 0%;"></div>
+</div>
+<div id="assessment-content"></div>
+<button class="btn" onclick="nextQuestion()" id="next-btn" disabled>Next</button>
+</div>
+
+<!-- Superpowers Step -->
+<div class="step" id="superpowers">
+<h2>Choose Your Top 3 Peer Superpowers</h2>
+<div class="progress-bar">
+<div class="progress-fill" style="width: 75%;"></div>
+</div>
+<div class="intro-text">Which of these best describe how you help others?</div>
+<div class="superpower-grid" id="superpower-grid"></div>
+<button class="btn" onclick="nextFromSuperpowers()" id="superpower-next" disabled>Continue</button>
+</div>
+
+<!-- Vision Step -->
+<div class="step" id="vision">
+<h2>Your Vision for Impact</h2>
+<div class="progress-bar">
+<div class="progress-fill" style="width: 90%;"></div>
+</div>
+<div class="question-container">
+<div style="font-size: 1.1em; margin-bottom: 15px;">Complete this sentence:</div>
+<div style="font-size: 1.3em; color: #ff6b6b; margin-bottom: 15px;">"The world needs me to..."</div>
+<textarea id="vision-input" placeholder="Share your vision for how you want to impact the world..."></textarea>
+</div>
+<button class="btn" onclick="generateResults()">Discover My Constellation</button>
+</div>
+
+<!-- Results Step -->
+<div class="step" id="results">
+<h2>Your Neurodiversity Gift Constellation</h2>
+<div class="progress-bar">
+<div class="progress-fill" style="width: 100%;"></div>
+</div>
+
+<div class="question-container">
+<div id="gift-statement" style="font-size: 1.3em; font-weight: bold; margin-bottom: 20px;"></div>
+<div id="primary-superpower" style="background: #ff6b6b; padding: 15px 25px; border-radius: 50px; display: inline-block; margin: 10px;"></div>
+</div>
+
+<div class="vision-box">
+<strong>Your Vision:</strong>
+<div id="user-vision" style="margin-top: 10px; font-style: italic;"></div>
+</div>
+
 <div class="question-container">
 <h3>Your Hub: <span id="user-hub">--</span></h3>
-<h3>Your Name: <span id="user-name">--</span></h3>
-<p style="margin: 20px 0;">Thank you for participating in the Strength and Sustainability Conference assessment!</p>
-<p>Your responses have been saved and you're connected with your hub for collaborative opportunities.</p>
+<p>You're connected with your hub for collaborative opportunities!</p>
 </div>
+
 <button class="btn" onclick="restart()">🔄 Start Over</button>
+<button class="btn" onclick="viewGroupDashboard()" id="group-dashboard-btn" style="background: #9b59b6; display: none;">👥 View Dashboard</button>
 </div>
 
 <!-- Loading Step -->
@@ -307,8 +459,121 @@ participantName: '',
 hubNumber: '',
 sessionId: null,
 isGroupSession: false,
-isHost: false
+isHost: false,
+intelligenceScores: {},
+selectedSuperpowers: [],
+visionStatement: '',
+currentQuestion: 0,
+responses: []
 };
+
+// Intelligence types and questions
+const intelligenceTypes = {
+linguistic: {
+name: "Word Smart",
+questions: [
+"I can translate complex emotional experiences into words that help others understand",
+"I'm good at explaining psychological concepts in simple terms"
+]
+},
+logicalMath: {
+name: "Logic Smart", 
+questions: [
+"I notice patterns in my symptoms, moods, or treatment responses"
+]
+},
+musical: {
+name: "Music Smart",
+questions: [
+"Music has been crucial for my healing and expression"
+]
+},
+bodilyKinesthetic: {
+name: "Body Smart",
+questions: [
+"I've learned to read my body's signals for early warning signs"
+]
+},
+visualSpatial: {
+name: "Picture Smart",
+questions: [
+"I think in images and see beauty in unexpected places",
+"I use art, drawing, or visual expression for healing"
+]
+},
+interpersonal: {
+name: "People Smart",
+questions: [
+"I naturally connect with others in crisis because I recognize their journey"
+]
+},
+intrapersonal: {
+name: "Self Smart",
+questions: [
+"I've developed deep self-awareness through my mental health journey"
+]
+},
+naturalistic: {
+name: "Nature Smart",
+questions: [
+"I find healing and perspective in nature"
+]
+},
+existential: {
+name: "Meaning Smart",
+questions: [
+"I ask big questions about meaning, purpose, and reality",
+"I help others find meaning in their suffering"
+]
+}
+};
+
+const superpowers = [
+{
+id: "crisisNavigator",
+name: "Crisis Navigator",
+icon: "🧭",
+description: "I help others navigate life storms and find their way through chaos"
+},
+{
+id: "meaningMaker",
+name: "Meaning Maker", 
+icon: "🎯",
+description: "I help people find purpose and significance in their experiences"
+},
+{
+id: "hopeDealer",
+name: "Hope Dealer",
+icon: "✨",
+description: "I help people see possibilities they can't see for themselves"
+},
+{
+id: "empathyBridge",
+name: "Empathy Bridge",
+icon: "🌉",
+description: "I connect people's hearts and help them understand each other"
+},
+{
+id: "realityTranslator",
+name: "Reality Translator",
+icon: "🔮",
+description: "I help make sense of confusing or overwhelming experiences"
+},
+{
+id: "resilienceTeacher",
+name: "Resilience Teacher",
+icon: "💪",
+description: "I show others how to bounce back from setbacks"
+}
+];
+
+// Questions for assessment
+const allQuestions = [];
+Object.keys(intelligenceTypes).forEach(type => {
+intelligenceTypes[type].questions.forEach(question => {
+allQuestions.push({ type, question });
+});
+});
 
 // Step navigation functions
 function showStep(stepId) {
@@ -421,17 +686,151 @@ if (!name || !hub) return;
 
 assessmentData.participantName = name;
 assessmentData.hubNumber = hub;
+assessmentData.currentQuestion = 0;
+assessmentData.responses = [];
 
-// Show success page
-document.getElementById('user-name').textContent = name;
-document.getElementById('user-hub').textContent = hub;
+// Initialize intelligence scores
+Object.keys(intelligenceTypes).forEach(type => {
+assessmentData.intelligenceScores[type] = 0;
+});
+
+showStep('assessment');
+displayQuestion();
+}
+
+function displayQuestion() {
+const question = allQuestions[assessmentData.currentQuestion];
+const container = document.getElementById('assessment-content');
+const progress = ((assessmentData.currentQuestion + 1) / allQuestions.length) * 100;
+document.getElementById('progress-bar').style.width = progress + '%';
+
+container.innerHTML = `
+<div class="question-container">
+<div style="font-size: 1.1em; margin-bottom: 15px;">Question ${assessmentData.currentQuestion + 1} of ${allQuestions.length}</div>
+<div style="font-size: 1.3em; margin: 20px 0;">${question.question}</div>
+<div class="rating-scale">
+<div class="rating-option" data-value="1">Not me</div>
+<div class="rating-option" data-value="2">Rarely me</div>
+<div class="rating-option" data-value="3">Sometimes me</div>
+<div class="rating-option" data-value="4">Often me</div>
+<div class="rating-option" data-value="5">Totally me</div>
+</div>
+</div>
+`;
+
+// Add click handlers
+document.querySelectorAll('.rating-option').forEach(option => {
+option.addEventListener('click', function() {
+document.querySelectorAll('.rating-option').forEach(opt => opt.classList.remove('selected'));
+this.classList.add('selected');
+document.getElementById('next-btn').disabled = false;
+});
+});
+
+document.getElementById('next-btn').disabled = true;
+}
+
+function nextQuestion() {
+const selected = document.querySelector('.rating-option.selected');
+if (!selected) return;
+
+const question = allQuestions[assessmentData.currentQuestion];
+const score = parseInt(selected.dataset.value);
+assessmentData.responses.push({ question: question.question, score, type: question.type });
+assessmentData.intelligenceScores[question.type] += score;
+
+assessmentData.currentQuestion++;
+
+if (assessmentData.currentQuestion < allQuestions.length) {
+displayQuestion();
+} else {
+showStep('superpowers');
+displaySuperpowers();
+}
+}
+
+function displaySuperpowers() {
+const container = document.getElementById('superpower-grid');
+container.innerHTML = superpowers.map(power => `
+<div class="superpower-card" data-id="${power.id}">
+<span style="font-size: 2em; margin-bottom: 10px; display: block;">${power.icon}</span>
+<div style="font-size: 1.2em; font-weight: bold; margin-bottom: 8px;">${power.name}</div>
+<div style="font-size: 0.9em; opacity: 0.9;">${power.description}</div>
+</div>
+`).join('');
+
+// Add click handlers
+document.querySelectorAll('.superpower-card').forEach(card => {
+card.addEventListener('click', function() {
+const isSelected = this.classList.contains('selected');
+const selectedCount = document.querySelectorAll('.superpower-card.selected').length;
+
+if (isSelected) {
+this.classList.remove('selected');
+} else if (selectedCount < 3) {
+this.classList.add('selected');
+}
+
+const newSelectedCount = document.querySelectorAll('.superpower-card.selected').length;
+document.getElementById('superpower-next').disabled = newSelectedCount === 0;
+});
+});
+}
+
+function nextFromSuperpowers() {
+const selectedCards = document.querySelectorAll('.superpower-card.selected');
+assessmentData.selectedSuperpowers = Array.from(selectedCards).map(card => card.dataset.id);
+showStep('vision');
+}
+
+function generateResults() {
+assessmentData.visionStatement = document.getElementById('vision-input').value;
 
 // Save data if in group session
 if (assessmentData.isGroupSession && assessmentData.sessionId) {
 saveParticipantData();
 }
 
-showStep('success');
+// Generate individual results
+displayResults();
+showStep('results');
+}
+
+function displayResults() {
+// Find strongest intelligence
+const strongestType = Object.keys(assessmentData.intelligenceScores).reduce((a, b) => 
+assessmentData.intelligenceScores[a] > assessmentData.intelligenceScores[b] ? a : b
+);
+
+// Generate gift statement
+const giftStatements = {
+linguistic: "You have the gift of translating complex emotions into healing words",
+logicalMath: "You have the gift of finding patterns and solutions in chaos",
+musical: "You have the gift of creating harmony from discord",
+bodilyKinesthetic: "You have the gift of embodied wisdom and intuitive knowing",
+visualSpatial: "You have the gift of seeing beauty and possibility in all things",
+interpersonal: "You have the gift of heart-to-heart connection and understanding",
+intrapersonal: "You have the gift of deep self-knowledge and inner wisdom",
+naturalistic: "You have the gift of finding healing and truth in nature's rhythms",
+existential: "You have the gift of helping others find meaning in their journey"
+};
+
+document.getElementById('gift-statement').textContent = giftStatements[strongestType];
+
+// Display primary superpower
+if (assessmentData.selectedSuperpowers.length > 0) {
+const primarySuperpower = superpowers.find(s => s.id === assessmentData.selectedSuperpowers[0]);
+document.getElementById('primary-superpower').textContent = `${primarySuperpower.icon} ${primarySuperpower.name}`;
+}
+
+// Display vision
+document.getElementById('user-vision').textContent = assessmentData.visionStatement || "Creating positive change in the world";
+document.getElementById('user-hub').textContent = assessmentData.hubNumber;
+
+// Show group dashboard button if in group session
+if (assessmentData.isGroupSession) {
+document.getElementById('group-dashboard-btn').style.display = 'inline-block';
+}
 }
 
 async function saveParticipantData() {
@@ -477,7 +876,12 @@ participantName: '',
 hubNumber: '',
 sessionId: null,
 isGroupSession: false,
-isHost: false
+isHost: false,
+intelligenceScores: {},
+selectedSuperpowers: [],
+visionStatement: '',
+currentQuestion: 0,
+responses: []
 };
 
 // Reset form
