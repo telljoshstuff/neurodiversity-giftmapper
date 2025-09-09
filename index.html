@@ -1,0 +1,1590 @@
+function updateLiveConstellation(participants) {
+const container = document.getElementById('live-constellation-participants');
+const connectionsContainer = document.getElementById('live-constellation-connections');
+const labelsContainer = document.getElementById('live-constellation-labels');
+
+// Clear existing
+container.innerHTML = '';
+connectionsContainer.innerHTML = '';
+labelsContainer.innerHTML = '';
+
+if (participants.length === 0) {
+const waitingText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+waitingText.setAttribute('x', '300');
+waitingText.setAttribute('y', '200');
+waitingText.setAttribute('text-anchor', 'middle');
+waitingText.setAttribute('fill', 'rgba(255,255,255,0.6)');
+waitingText.setAttribute('font-size', '18');
+waitingText.textContent = 'Waiting for assessments to complete...';
+container.appendChild(waitingText);
+return;
+}
+
+// Group participants by hub
+const hubGroups = {};
+participants.forEach(participant => {
+const hub = participant.hubNumber || 'Unknown';
+if (!hubGroups[hub]) hubGroups[hub] = [];
+hubGroups[hub].push(participant);
+});
+
+// Base constellation positions
+const positions = {
+linguistic: {x: 150, y: 80},
+logicalMath: {x: 450, y: 120},
+musical: {x: 500, y: 250},
+bodilyKinesthetic: {x: 300, y: 320},
+visualSpatial: {x: 100, y: 280},
+interpersonal: {x: 50, y: 150},
+intrapersonal: {x: 120, y: 100},
+naturalistic: {x: 250, y: 60},
+existential: {x: 300, y: 180}
+};
+
+const hubColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b', '#6c5ce7', '#00b894', '#fdcb6e', '#e17055'];
+
+// Draw hub-specific constellations
+Object.entries(hubGroups).forEach(([hubNumber, hubParticipants], hubIndex) => {
+const hubColor = hubColors[hubIndex % hubColors.length];
+
+// Add hub label
+const hubLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+const hubY = 40 + (hubIndex * 15);
+hubLabel.setAttribute('x', '30');
+hubLabel.setAttribute('y', hubY);
+hubLabel.setAttribute('fill', hubColor);
+hubLabel.setAttribute('font-size', '12');
+hubLabel.setAttribute('font-weight', 'bold');
+hubLabel.textContent = `Hub ${hubNumber} (${hubParticipants.length})`;
+labelsContainer.appendChild(hubLabel);
+
+hubParticipants.forEach((participant, participantIndex) => {
+const baseOpacity = 0.8;
+const sizeReduction = hubParticipants.length > 10 ? 0.8 : 1;
+
+Object.entries(positions).forEach(([type, basePos]) => {
+const score = participant.intelligenceScores[type] || 0;
+if (score === 0) return;
+
+const radius = ((score / 5) * 12 + 4) * sizeReduction;
+const opacity = (baseOpacity + (score / 5) * 0.4) * 0.8;
+
+// Hub-specific offset calculation
+const offsetAngle = (participantIndex * 2 * Math.PI) / Math.max(hubParticipants.length, 6);
+const offsetRadius = Math.min(participantIndex * 8, 25) + (hubIndex * 15);
+const offsetX = Math.cos(offsetAngle) * offsetRadius;
+const offsetY = Math.sin(offsetAngle) * offsetRadius;
+
+const star = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+star.setAttribute('cx', basePos.x + offsetX);
+star.setAttribute('cy', basePos.y + offsetY);
+star.setAttribute('r', radius);
+star.setAttribute('fill', hubColor);
+star.setAttribute('opacity', opacity);
+star.setAttribute('class', score >= 4 ? 'star-glow' : '');
+
+container.appendChild(star);
+
+// Add participant label for their brightest stars only
+if (score >= 4.0) {
+const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+label.setAttribute('x', basePos.x + offsetX);
+label.setAttribute('y', basePos.y + offsetY - radius - 3);
+label.setAttribute('text-anchor', 'middle');
+label.setAttribute('fill', hubColor);
+label.setAttribute('font-size', '7');
+label.setAttribute('font-weight', 'bold');
+label.textContent = participant.name.length > 6 ? participant.name.substring(0, 6) + '...' : participant.name;
+labelsContainer.appendChild(label);
+}
+});
+
+// Draw connections within hub
+for (let i = 0; i < hubParticipants.length - 1; i++) {
+for (let j = i + 1; j < hubParticipants.length; j++) {
+const p1 = hubParticipants[i];
+const p2 = hubParticipants[j];
+
+// Find their strongest shared intelligence
+let strongestShared = null;
+let maxSharedScore = 0;
+Object.keys(positions).forEach(type => {
+const score1 = p1.intelligenceScores[type] || 0;
+const score2 = p2.intelligenceScores[type] || 0;
+const minScore = Math.min(score1, score2);
+if (minScore > maxSharedScore && minScore >= 3.5) {
+maxSharedScore = minScore;
+strongestShared = type;
+}
+});
+
+if (strongestShared) {
+const pos = positions[strongestShared];
+const offset1Angle = (i * 2 * Math.PI) / Math.max(hubParticipants.length, 6);
+const offset1Radius = Math.min(i * 8, 25) + (hubIndex * 15);
+const offset1X = Math.cos(offset1Angle) * offset1Radius;
+const offset1Y = Math.sin(offset1Angle) * offset1Radius;
+
+const offset2Angle = (j * 2 * Math.PI) / Math.max(hubParticipants.length, 6);
+const offset2Radius = Math.min(j * 8, 25) + (hubIndex * 15);
+const offset2X = Math.cos(offset2Angle) * offset2Radius;
+const offset2Y = Math.sin(offset2Angle) * offset2Radius;
+
+const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+line.setAttribute('x1', pos.x + offset1X);
+line.setAttribute('y1', pos.y + offset1Y);
+line.setAttribute('x2', pos.x + offset2X);
+line.setAttribute('y2', pos.y + offset2Y);
+line.setAttribute('stroke', hubColor);
+line.setAttribute('stroke-width', '1');
+line.setAttribute('opacity', '0.3');
+connectionsContainer.appendChild(line);
+}
+}
+}
+});
+});
+
+// Add main title
+const titleText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+titleText.setAttribute('x', '300');
+titleText.setAttribute('y', '25');
+titleText.setAttribute('text-anchor', 'middle');
+titleText.setAttribute('fill', '#ff6b6b');
+titleText.setAttribute('font-size', '16');
+titleText.setAttribute('font-weight', 'bold');
+titleText.textContent = `Conference Constellation Map (${participants.length} participants)`;
+labelsContainer.appendChild(titleText);
+}
+
+async function generateBusinessOpportunities() {
+try {
+let allParticipants = [];
+
+// Try Firebase first
+if (firebaseAvailable && database) {
+try {
+const snapshot = await database.ref(`sessions/${assessmentData.sessionId}/participants`).once('value');
+allParticipants = Object.values(snapshot.val() || {});
+} catch (error) {
+console.warn('⚠ Firebase fetch failed for opportunities:', error);
+}
+}
+
+// Fallback to localStorage
+if (allParticipants.length === 0) {
+const sessionKey = `session_${assessmentData.sessionId}`;
+const sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{"participants": {}}');
+allParticipants = Object.values(sessionData.participants || {});
+}
+
+// Filter participants by current user's hub
+const currentHub = assessmentData.hubNumber;
+const hubParticipants = allParticipants.filter(p => p.hubNumber === currentHub);
+
+if (hubParticipants.length < 2) {
+alert(`Need at least 2 participants in Hub ${currentHub} to generate business opportunities. Currently ${hubParticipants.length} in your hub.`);
+return;
+}
+
+console.log(`🚀 Generating business opportunities for Hub ${currentHub}:`, hubParticipants.map(p => p.name));
+
+// Analyze collective profile
+const collectiveProfile = analyzeCollectiveProfile(hubParticipants);
+const opportunities = createBusinessOpportunities(collectiveProfile, hubParticipants);
+
+displayBusinessOpportunities(opportunities, currentHub);
+document.getElementById('entrepreneurial-opportunities').style.display = 'block';
+} catch (error) {
+console.error('Error generating opportunities:', error);
+alert('Failed to generate business opportunities. Please try again.');
+}
+}
+
+function analyzeCollectiveProfile(participants) {
+// Calculate collective intelligence scores
+const collectiveScores = {};
+Object.keys(intelligenceTypes).forEach(type => {
+const scores = participants.map(p => p.intelligenceScores[type] || 0);
+collectiveScores[type] = scores.reduce((a, b) => a + b) / scores.length;
+});
+
+// Analyze superpowers
+const allSuperpowers = participants.flatMap(p => p.selectedSuperpowers || []);
+const superpowerCounts = {};
+allSuperpowers.forEach(power => {
+superpowerCounts[power] = (superpowerCounts[power] || 0) + 1;
+});
+
+// Get top collective strengths
+const topIntelligences = Object.entries(collectiveScores)
+.sort(([,a], [,b]) => b - a)
+.slice(0, 3);
+
+const topSuperpowers = Object.entries(superpowerCounts)
+.sort(([,a], [,b]) => b - a)
+.slice(0, 3);
+
+return {
+participants,
+collectiveScores,
+topIntelligences,
+topSuperpowers,
+averageScore: Object.values(collectiveScores).reduce((a, b) => a + b) / Object.values(collectiveScores).length
+};
+}
+
+function createBusinessOpportunities(profile, participants) {
+const { topIntelligences, topSuperpowers } = profile;
+
+// Expanded opportunity pool with innovative peer-driven mental health ventures
+const opportunityPool = [
+{
+icon: "🎨",
+title: "Therapeutic Art Crowdfunding Collective",
+description: `Your group's ${intelligenceTypes[topIntelligences[0][0]].name} (${topIntelligences[0][1].toFixed(1)}/5) and ${intelligenceTypes[topIntelligences[1][0]].name} create powerful art that tells mental health stories. Launch crowdfunded campaigns where art sales fund peer support programs, mental health education, or crisis intervention resources.`,
+potential: "Revenue potential: $25K-500K per campaign through limited edition prints ($50-2000), commissioned pieces ($500-25K), corporate art installations ($5K-100K), and therapeutic art workshops ($100-1000 per person).",
+type: "arts"
+},
+{
+icon: "🏺",
+title: "Kintsugi Healing Workshop Empire",
+description: `Transform the Japanese art of golden repair into peer healing experiences. Your collective ${intelligenceTypes[topIntelligences[0][0]].name} creates workshops where participants repair broken pottery while processing their own healing journey - metaphorically mending their 'broken' parts with gold.`,
+potential: "Revenue potential: $40K-300K annually through workshop fees ($75-200 per person), corporate team building ($2K-15K per session), therapist training certifications ($500-2K), and Kintsugi kit sales ($25-150 each).",
+type: "workshops"
+},
+{
+icon: "🤖",
+title: "Peer Support DAO with AI Fleet",
+description: `Create a decentralized autonomous organization that deploys AI-driven support vehicles and robots to underserved communities. Your ${intelligenceTypes[topIntelligences[1][0]].name} designs systems where peer supporters coordinate with AI to provide 24/7 crisis response, medication delivery, and community check-ins.`,
+potential: "Revenue potential: $100K-2M+ annually through municipal contracts ($50K-500K), healthcare partnerships, subscription services ($30-100/month), and technology licensing to other communities.",
+type: "technology"
+},
+{
+icon: "🌱",
+title: "Neuroplasticity Garden Therapy Centers",
+description: `Combine your collective strengths to create spaces where people literally grow their healing. Design therapeutic gardens where participants grow plants while learning about neuroplasticity - understanding how their brains can 'grow' new pathways just like plants.`,
+potential: "Revenue potential: $75K-400K annually through individual sessions ($80-150), group programs ($50-100 per person), corporate wellness contracts ($10K-50K), and garden consultation ($2K-20K per project).",
+type: "therapy"
+},
+{
+icon: "🎪",
+title: "Trauma-Informed Circus Arts Collective",
+description: `Your group's unique combination of intelligences creates a circus arts program where aerial work, juggling, and performance help people reclaim their bodies and build confidence. Partner with treatment centers and schools for trauma-informed programming.`,
+potential: "Revenue potential: $60K-350K annually through classes ($25-75 per session), performances ($2K-25K per show), training programs for therapists ($1K-5K), and equipment sales ($50-2000).",
+type: "performance"
+},
+{
+icon: "🔮",
+title: "Peer Futures Visualization Studio",
+description: `Use your collective vision to help others imagine healing futures. Create immersive VR/AR experiences, guided visualization retreats, and future-self workshops where people can literally see and feel their recovered selves.`,
+potential: "Revenue potential: $50K-400K annually through individual sessions ($100-300), retreat weekends ($500-2000), VR licensing ($10K-100K), and corporate wellness programs ($5K-50K).",
+type: "technology"
+},
+{
+icon: "🎵",
+title: "Biorhythm Sound Healing Cooperative",
+description: `Develop sound therapy programs that sync with natural biological rhythms. Create healing soundscapes, binaural beat libraries, and live sound bath experiences specifically designed for different mental health conditions and recovery phases.`,
+potential: "Revenue potential: $40K-250K annually through sessions ($75-200), album sales ($10-50), corporate stress-reduction programs ($5K-30K), and sound healing certifications ($500-3K).",
+type: "wellness"
+},
+{
+icon: "📱",
+title: "Peer Micro-Learning Crisis App",
+description: `Build an app where peers share 30-second videos teaching specific coping skills they've mastered. Monetize through subscriptions, therapeutic partnerships, and AI-powered personalized skill recommendations based on user patterns.`,
+potential: "Revenue potential: $80K-1M+ annually through premium subscriptions ($10-30/month), in-app purchases ($1-20), healthcare licensing ($25K-200K), and advertising partnerships.",
+type: "digital"
+},
+{
+icon: "🏠",
+title: "Intentional Healing Community Network",
+description: `Create a network of peer-led intentional communities focused on collective healing. Design and manage sober living houses, co-housing projects, and retreat centers where mental health peers support each other's recovery journey.`,
+potential: "Revenue potential: $100K-800K annually through housing fees ($400-1200/month per resident), retreat programs ($200-2000 per person), consultation for new communities ($5K-50K), and property management contracts.",
+type: "community"
+},
+{
+icon: "⚡",
+title: "Energy Medicine & Peer Support Fusion",
+description: `Combine traditional peer support with energy healing modalities like Reiki, acupressure, and breathwork. Train peers in both psychological support and energy healing to offer holistic crisis intervention and ongoing support.`,
+potential: "Revenue potential: $55K-320K annually through healing sessions ($80-200), training certifications ($800-3K), retreat intensives ($300-1500), and corporate wellness contracts ($8K-40K).",
+type: "healing"
+}
+];
+
+// Select 3 opportunities that best match the group's strengths
+let selectedOpportunities = [];
+
+// Smart matching based on intelligences and superpowers
+if (topIntelligences.some(([type]) => ['visualSpatial', 'bodilyKinesthetic'].includes(type))) {
+selectedOpportunities.push(opportunityPool.find(o => o.type === 'arts') || opportunityPool[0]);
+}
+if (topIntelligences.some(([type]) => ['logicalMath', 'existential'].includes(type))) {
+selectedOpportunities.push(opportunityPool.find(o => o.type === 'technology') || opportunityPool[2]);
+}
+if (topIntelligences.some(([type]) => ['interpersonal', 'intrapersonal'].includes(type))) {
+selectedOpportunities.push(opportunityPool.find(o => o.type === 'community') || opportunityPool[8]);
+}
+
+// Fill remaining slots with diverse options
+while (selectedOpportunities.length < 3) {
+const remaining = opportunityPool.filter(o => !selectedOpportunities.includes(o));
+selectedOpportunities.push(remaining[Math.floor(Math.random() * remaining.length)]);
+}
+
+// Add team assignments to each opportunity
+return selectedOpportunities.map(opp => ({
+...opp,
+assignments: createTaskAssignments(participants, [topIntelligences[0][0], topIntelligences[1][0]])
+}));
+}
+
+function createTaskAssignments(participants, preferredIntelligences) {
+const assignments = [];
+const roles = [
+'Lead Visionary & Strategy',
+'Client Relations & Sales', 
+'Content Development & Training',
+'Operations & Systems',
+'Marketing & Community Building',
+'Financial Management',
+'Technology & Innovation',
+'Quality Assurance & Support'
+];
+
+// Assign roles based on intelligence strengths and superpowers
+participants.forEach((participant, index) => {
+const topIntelligence = Object.entries(participant.intelligenceScores)
+.sort(([,a], [,b]) => b - a)[0];
+const primarySuperpower = superpowers.find(s => s.id === participant.selectedSuperpowers[0]);
+
+let assignedRole = roles[index % roles.length];
+let roleDescription = '';
+
+// Customize role based on strengths
+if (topIntelligence[0] === 'interpersonal') {
+assignedRole = 'Client Relations & Community Building';
+roleDescription = 'Build relationships with clients and foster community connections using your People Smart gifts.';
+} else if (topIntelligence[0] === 'linguistic') {
+assignedRole = 'Content Development & Marketing';
+roleDescription = 'Create compelling content, training materials, and marketing messages using your Word Smart abilities.';
+} else if (topIntelligence[0] === 'logicalMath') {
+assignedRole = 'Operations & Financial Management';
+roleDescription = 'Handle systems, processes, and financial planning using your Logic Smart strengths.';
+} else if (topIntelligence[0] === 'visualSpatial') {
+assignedRole = 'Design & Technology Innovation';
+roleDescription = 'Lead visual design, user experience, and technology development using your Picture Smart talents.';
+} else if (topIntelligence[0] === 'existential') {
+assignedRole = 'Vision & Strategy Leadership';
+roleDescription = 'Guide overall vision and strategic direction using your Meaning Smart insights.';
+} else {
+roleDescription = `Apply your ${intelligenceTypes[topIntelligence[0]].name} and ${primarySuperpower ? primarySuperpower.name : 'unique abilities'} to drive success.`;
+}
+
+assignments.push({
+person: participant.name,
+role: assignedRole,
+description: roleDescription,
+superpower: primarySuperpower ? primarySuperpower.name : 'Unique Contributor',
+strength: intelligenceTypes[topIntelligence[0]].name
+});
+});
+
+return assignments;
+}
+
+function displayBusinessOpportunities(opportunities, hubNumber) {
+const container = document.getElementById('opportunity-cards');
+container.innerHTML = '';
+
+// Add hub-specific header
+const hubHeader = document.createElement('div');
+hubHeader.innerHTML = `<h4 style="color: #ff6b6b; margin-bottom: 20px; text-align: center;">💡 Hub ${hubNumber} Entrepreneurial Opportunities</h4>`;
+container.appendChild(hubHeader);
+
+opportunities.forEach((opp, index) => {
+const card = document.createElement('div');
+card.className = 'opportunity-card';
+card.innerHTML = `
+<div class="opportunity-title">
+${opp.icon} ${opp.title}
+</div>
+<div class="opportunity-desc">
+${opp.description}
+</div>
+<div class="opportunity-potential">
+<strong>💰 Business Potential:</strong><br>
+${opp.potential}
+</div>
+<div class="team-assignments">
+<h4>👥 Hub ${hubNumber} Team Role Assignments:</h4>
+${opp.assignments.map(assignment => `
+<div class="assignment-item">
+<div class="assignment-person">${assignment.person}</div>
+<div class="assignment-role"><strong>Role:</strong> ${assignment.role}</div>
+<div class="assignment-role">${assignment.description}</div>
+</div>
+`).join('')}
+</div>
+`;
+
+card.addEventListener('click', () => {
+card.style.transform = 'scale(1.02)';
+setTimeout(() => card.style.transform = 'none', 200);
+});
+
+container.appendChild(card);
+});
+}
+
+async function testAddParticipant() {
+if (!assessmentData.sessionId) {
+alert('No active session');
+return;
+}
+
+try {
+const hubNumber = Math.floor(Math.random() * 25) + 1;
+const testParticipant = {
+name: `TestUser${Math.floor(Math.random() * 1000)}`,
+hubNumber: hubNumber.toString(),
+intelligenceScores: {
+linguistic: 4.2,
+logicalMath: 3.1,
+musical: 3.8,
+bodilyKinesthetic: 2.9,
+visualSpatial: 4.5,
+interpersonal: 4.0,
+intrapersonal: 3.7,
+naturalistic: 3.2,
+existential: 4.1
+},
+selectedSuperpowers: ['meaningMaker', 'hopeDealer', 'visionary'],
+visionStatement: 'help others discover their hidden potential',
+timestamp: Date.now()
+};
+
+// Save to Firebase if available
+if (firebaseAvailable && database) {
+try {
+await database.ref(`sessions/${assessmentData.sessionId}/participants/${testParticipant.name}`).set({
+...testParticipant,
+timestamp: firebase.database.ServerValue.TIMESTAMP
+});
+console.log('✅ Test participant added to Firebase');
+} catch (error) {
+console.warn('⚠ Firebase test add failed:', error);
+}
+}
+
+// Always save to localStorage
+const sessionKey = `session_${assessmentData.sessionId}`;
+let sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{"participants": {}}');
+if (!sessionData.participants) sessionData.participants = {};
+
+sessionData.participants[testParticipant.name] = testParticipant;
+sessionData.lastUpdated = Date.now();
+localStorage.setItem(sessionKey, JSON.stringify(sessionData));
+
+console.log(`✅ Added test participant: ${testParticipant.name} to Hub ${hubNumber}`);
+} catch (error) {
+console.error('Error adding test participant:', error);
+alert('Failed to add test participant.');
+}
+}
+
+function backToResults() {
+showStep('results');
+}
+
+function downloadResults() {
+try {
+const results = {
+name: assessmentData.participantName,
+hubNumber: assessmentData.hubNumber,
+intelligenceScores: assessmentData.intelligenceScores,
+selectedSuperpowers: assessmentData.selectedSuperpowers,
+visionStatement: assessmentData.visionStatement,
+sessionId: assessmentData.sessionId || 'individual',
+timestamp: new Date().toISOString()
+};
+
+const blob = new Blob([JSON.stringify(results, null, 2)], {type: 'application/json'});
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = `neurodiversity-constellation-${assessmentData.participantName}-hub${assessmentData.hubNumber}.json`;
+a.click();
+URL.revokeObjectURL(url);
+} catch (error) {
+console.error('Error downloading results:', error);
+alert('Failed to download results.');
+}
+}
+
+function shareResults() {
+try {
+const giftStatement = document.getElementById('gift-statement').textContent;
+const text = `I just discovered my Neurodiversity Gift Constellation! ${giftStatement}`;
+
+if (navigator.share) {
+navigator.share({
+title: 'My Neurodiversity Gift Constellation',
+text: text
+});
+} else {
+navigator.clipboard.writeText(text).then(() => {
+alert('Constellation profile copied to clipboard!');
+}).catch(() => {
+// Fallback for older browsers
+const textArea = document.createElement('textarea');
+textArea.value = text;
+document.body.appendChild(textArea);
+textArea.select();
+document.execCommand('copy');
+document.body.removeChild(textArea);
+alert('Constellation profile copied to clipboard!');
+});
+}
+} catch (error) {
+console.error('Error sharing results:', error);
+alert('Failed to share results.');
+}
+}
+
+async function exportGroupData() {
+if (!assessmentData.sessionId) return;
+
+try {
+let participants = [];
+
+// Try Firebase first
+if (firebaseAvailable && database) {
+try {
+const snapshot = await database.ref(`sessions/${assessmentData.sessionId}/participants`).once('value');
+participants = Object.values(snapshot.val() || {});
+} catch (error) {
+console.warn('⚠ Firebase export failed:', error);
+}
+}
+
+// Fallback to localStorage
+if (participants.length === 0) {
+const sessionKey = `session_${assessmentData.sessionId}`;
+const sessionData = JSON.parse(localStorage.getItem(sessionKey) || '{}');
+participants = Object.values(sessionData.participants || {});
+}
+
+const exportData = {
+sessionId: assessmentData.sessionId,
+timestamp: new Date().toISOString(),
+participants: participants,
+summary: {
+participantCount: participants.length,
+exportedBy: assessmentData.participantName,
+connectionType: firebaseAvailable ? 'Firebase + localStorage' : 'localStorage only'
+}
+};
+
+const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = `collective-genius-session-${assessmentData.sessionId}.json`;
+a.click();
+URL.revokeObjectURL(url);
+} catch (error) {
+console.error('Error exporting group data:', error);
+alert('Failed to export group data.');
+}
+}
+
+function restart() {
+// Clean up all listeners and polling
+cleanupListeners();
+
+// Reset state
+assessmentData = {
+participantName: '',
+hubNumber: '',
+intelligenceScores: {},
+selectedSuperpowers: [],
+visionStatement: '',
+isGroupSession: false,
+sessionId: null,
+isHost: false,
+currentQuestion: 0,
+responses: []
+};
+showStep('welcome');
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+const nameInput = document.getElementById('participant-name');
+const hubSelect = document.getElementById('hub-number');
+
+function checkNameAndHub() {
+const nameValid = nameInput.value.trim().length > 0;
+const hubValid = hubSelect.value !== '';
+document.getElementById('name-next').disabled = !(nameValid && hubValid);
+}
+
+if (nameInput) {
+nameInput.addEventListener('input', checkNameAndHub);
+}
+
+if (hubSelect) {
+hubSelect.addEventListener('change', checkNameAndHub);
+}
+
+const joinCodeInput = document.getElementById('join-code');
+if (joinCodeInput) {
+joinCodeInput.addEventListener('input', function() {
+this.value = this.value.toUpperCase().substring(0, 6);
+});
+}
+
+// Handle page visibility changes for better resource management
+document.addEventListener('visibilitychange', function() {
+if (document.hidden) {
+// Page is hidden, reduce polling frequency or pause
+if (dashboardPolling) {
+clearInterval(dashboardPolling);
+}
+} else {
+// Page is visible again, resume normal operation
+if (document.getElementById('group-dashboard').classList.contains('active') && assessmentData.sessionId) {
+if (!firebaseAvailable) {
+setupLocalPolling();
+}
+}
+}
+});
+
+// Handle beforeunload for cleanup
+window.addEventListener('beforeunload', function() {
+cleanupListeners();
+});
+});
+</script>
+</body>
+</html><!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neurodiversity GiftMapper - Conference Ready</title>
+<!-- Firebase -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
+<style>
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+}
+
+.gift-mapper {
+font-family: 'Arial', sans-serif;
+max-width: 900px;
+margin: 0 auto;
+background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+border-radius: 20px;
+padding: 30px;
+color: white;
+min-height: 600px;
+}
+
+.step {
+display: none;
+text-align: center;
+}
+
+.step.active {
+display: block;
+animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(20px); }
+to { opacity: 1; transform: translateY(0); }
+}
+
+h1 {
+font-size: 2.5em;
+margin-bottom: 20px;
+text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+h2 {
+font-size: 1.8em;
+margin-bottom: 20px;
+color: #fff;
+}
+
+.intro-text {
+font-size: 1.1em;
+line-height: 1.6;
+margin-bottom: 30px;
+opacity: 0.9;
+}
+
+.question-container {
+background: rgba(255,255,255,0.1);
+border-radius: 15px;
+padding: 25px;
+margin: 20px 0;
+backdrop-filter: blur(10px);
+border: 1px solid rgba(255,255,255,0.2);
+}
+
+.question {
+font-size: 1.1em;
+margin-bottom: 15px;
+font-weight: 500;
+}
+
+.rating-scale {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin: 20px 0;
+flex-wrap: wrap;
+gap: 10px;
+}
+
+.rating-option {
+background: rgba(255,255,255,0.2);
+border: 2px solid transparent;
+border-radius: 50px;
+padding: 10px 20px;
+cursor: pointer;
+transition: all 0.3s ease;
+font-weight: bold;
+min-width: 80px;
+}
+
+.rating-option:hover {
+background: rgba(255,255,255,0.3);
+transform: translateY(-2px);
+}
+
+.rating-option.selected {
+background: #ff6b6b;
+border-color: #fff;
+box-shadow: 0 5px 15px rgba(255,107,107,0.4);
+}
+
+.superpower-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+gap: 15px;
+margin: 20px 0;
+}
+
+.superpower-card {
+background: rgba(255,255,255,0.15);
+border-radius: 12px;
+padding: 20px;
+cursor: pointer;
+transition: all 0.3s ease;
+border: 2px solid transparent;
+text-align: left;
+}
+
+.superpower-card:hover {
+transform: translateY(-3px);
+background: rgba(255,255,255,0.25);
+}
+
+.superpower-card.selected {
+border-color: #ff6b6b;
+background: rgba(255,107,107,0.3);
+}
+
+.superpower-icon {
+font-size: 2em;
+margin-bottom: 10px;
+display: block;
+}
+
+.superpower-name {
+font-size: 1.2em;
+font-weight: bold;
+margin-bottom: 8px;
+}
+
+.superpower-desc {
+font-size: 0.9em;
+opacity: 0.9;
+}
+
+.btn {
+background: #ff6b6b;
+color: white;
+border: none;
+padding: 15px 30px;
+border-radius: 50px;
+font-size: 1.1em;
+font-weight: bold;
+cursor: pointer;
+transition: all 0.3s ease;
+margin: 20px 10px;
+box-shadow: 0 5px 15px rgba(255,107,107,0.3);
+}
+
+.btn:hover {
+background: #ee5a52;
+transform: translateY(-2px);
+box-shadow: 0 8px 25px rgba(255,107,107,0.4);
+}
+
+.btn:disabled {
+background: #ccc;
+cursor: not-allowed;
+transform: none;
+box-shadow: none;
+}
+
+.progress-bar {
+background: rgba(255,255,255,0.2);
+border-radius: 10px;
+height: 8px;
+margin: 20px 0;
+overflow: hidden;
+}
+
+.progress-fill {
+background: #ff6b6b;
+height: 100%;
+border-radius: 10px;
+transition: width 0.3s ease;
+}
+
+.session-info {
+background: rgba(255,255,255,0.2);
+padding: 20px;
+border-radius: 15px;
+margin: 20px 0;
+text-align: center;
+}
+
+.session-code {
+font-family: monospace;
+font-size: 2em;
+font-weight: bold;
+color: #ff6b6b;
+background: rgba(255,255,255,0.3);
+padding: 15px 25px;
+border-radius: 15px;
+display: inline-block;
+margin: 15px 0;
+letter-spacing: 3px;
+}
+
+.participant-list {
+display: flex;
+flex-wrap: wrap;
+gap: 10px;
+justify-content: center;
+margin: 20px 0;
+}
+
+.participant-tag {
+background: rgba(255,255,255,0.2);
+padding: 8px 15px;
+border-radius: 20px;
+font-size: 0.9em;
+border: 1px solid rgba(255,255,255,0.3);
+}
+
+.participant-tag.me {
+background: #ff6b6b;
+font-weight: bold;
+}
+
+.constellation-container {
+display: flex;
+gap: 30px;
+align-items: center;
+justify-content: center;
+margin: 30px 0;
+flex-wrap: wrap;
+}
+
+.constellation-chart {
+background: linear-gradient(135deg, #1a1a3e 0%, #0a0a1e 100%);
+border-radius: 20px;
+padding: 20px;
+border: 2px solid rgba(255,255,255,0.1);
+box-shadow: 0 0 30px rgba(255,107,107,0.2);
+position: relative;
+}
+
+.constellation-stats {
+background: rgba(255,255,255,0.05);
+border-radius: 15px;
+padding: 25px;
+backdrop-filter: blur(10px);
+border: 1px solid rgba(255,255,255,0.1);
+min-width: 250px;
+}
+
+.stat-row {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin: 15px 0;
+padding: 10px 0;
+border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.stat-label {
+font-size: 0.9em;
+opacity: 0.8;
+}
+
+.stat-value {
+font-weight: bold;
+color: #ff6b6b;
+font-size: 1.1em;
+}
+
+.collective-constellation {
+text-align: center;
+margin: 30px 0;
+}
+
+.collective-constellation .constellation-chart {
+width: 100%;
+max-width: 600px;
+margin: 0 auto;
+}
+
+.star-glow {
+animation: gentleGlow 3s ease-in-out infinite;
+}
+
+@keyframes gentleGlow {
+0%, 100% { filter: brightness(1) drop-shadow(0 0 3px currentColor); opacity: 0.8; }
+50% { filter: brightness(1.3) drop-shadow(0 0 8px currentColor); opacity: 1; }
+}
+
+.opportunity-grid {
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+gap: 25px;
+margin: 30px 0;
+}
+
+.opportunity-card {
+background: linear-gradient(135deg, rgba(255,107,107,0.15) 0%, rgba(255,107,107,0.05) 100%);
+border-radius: 20px;
+padding: 30px;
+border: 2px solid rgba(255,107,107,0.3);
+transition: all 0.3s ease;
+cursor: pointer;
+position: relative;
+overflow: hidden;
+}
+
+.opportunity-card::before {
+content: '';
+position: absolute;
+top: -50%;
+left: -50%;
+width: 200%;
+height: 200%;
+background: linear-gradient(45deg, transparent, rgba(255,255,255,0.05), transparent);
+transform: rotate(45deg);
+transition: all 0.3s ease;
+}
+
+.opportunity-card:hover {
+transform: translateY(-8px);
+box-shadow: 0 15px 40px rgba(255,107,107,0.4);
+border-color: #ff6b6b;
+}
+
+.opportunity-card:hover::before {
+animation: shimmer 0.8s ease-in-out;
+}
+
+@keyframes shimmer {
+0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.opportunity-title {
+font-size: 1.4em;
+font-weight: bold;
+color: #ff6b6b;
+margin-bottom: 20px;
+display: flex;
+align-items: center;
+gap: 10px;
+}
+
+.opportunity-desc {
+font-size: 1em;
+line-height: 1.6;
+margin-bottom: 20px;
+opacity: 0.9;
+}
+
+.opportunity-potential {
+background: rgba(255,255,255,0.1);
+padding: 20px;
+border-radius: 15px;
+border-left: 4px solid #ff6b6b;
+margin-bottom: 15px;
+}
+
+.team-assignments {
+background: rgba(255,255,255,0.08);
+padding: 20px;
+border-radius: 15px;
+border-left: 4px solid #4ecdc4;
+}
+
+.team-assignments h4 {
+color: #4ecdc4;
+margin-bottom: 15px;
+font-size: 1.1em;
+}
+
+.assignment-item {
+background: rgba(255,255,255,0.05);
+padding: 12px;
+border-radius: 8px;
+margin: 8px 0;
+border-left: 3px solid #4ecdc4;
+}
+
+.assignment-person {
+font-weight: bold;
+color: #4ecdc4;
+}
+
+.assignment-role {
+opacity: 0.9;
+margin-top: 5px;
+font-size: 0.9em;
+}
+
+.live-constellation-chart {
+background: linear-gradient(135deg, #1a1a3e 0%, #0a0a1e 100%);
+border-radius: 20px;
+padding: 25px;
+border: 2px solid rgba(255,255,255,0.1);
+box-shadow: 0 0 30px rgba(255,107,107,0.2);
+text-align: center;
+margin: 25px 0;
+}
+
+.vision-box {
+background: rgba(255,255,255,0.1);
+border-radius: 10px;
+padding: 20px;
+margin: 20px 0;
+border-left: 4px solid #ff6b6b;
+}
+
+.connection-status {
+background: rgba(255,255,255,0.1);
+padding: 10px 15px;
+border-radius: 8px;
+margin: 10px 0;
+font-size: 0.9em;
+text-align: center;
+}
+
+.status-connected {
+border-left: 4px solid #27ae60;
+color: #27ae60;
+}
+
+.status-local {
+border-left: 4px solid #f39c12;
+color: #f39c12;
+}
+
+.status-error {
+border-left: 4px solid #e74c3c;
+color: #e74c3c;
+}
+
+textarea {
+width: 100%;
+padding: 15px;
+border-radius: 10px;
+border: none;
+background: rgba(255,255,255,0.9);
+color: #333;
+font-size: 1em;
+min-height: 100px;
+resize: vertical;
+}
+
+input[type="text"] {
+background: rgba(255,255,255,0.9);
+color: #333;
+border: 2px solid transparent;
+padding: 12px 15px;
+border-radius: 8px;
+font-size: 1em;
+text-align: center;
+margin: 10px;
+}
+
+input[type="text"]:focus {
+outline: none;
+border-color: #ff6b6b;
+box-shadow: 0 0 10px rgba(255,107,107,0.3);
+}
+
+select {
+background: rgba(255,255,255,0.9);
+color: #333;
+border: 2px solid transparent;
+padding: 12px 15px;
+border-radius: 8px;
+font-size: 1em;
+margin: 10px;
+}
+
+select:focus {
+outline: none;
+border-color: #ff6b6b;
+box-shadow: 0 0 10px rgba(255,107,107,0.3);
+}
+
+.loading {
+text-align: center;
+padding: 40px;
+}
+
+.loading-spinner {
+border: 3px solid rgba(255,255,255,0.3);
+border-radius: 50%;
+border-top: 3px solid #ff6b6b;
+width: 30px;
+height: 30px;
+animation: spin 1s linear infinite;
+margin: 20px auto;
+}
+
+@keyframes spin {
+0% { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+.gift-mapper {
+padding: 20px;
+margin: 10px;
+}
+.rating-scale {
+flex-direction: column;
+gap: 5px;
+}
+.rating-option {
+width: 100%;
+text-align: center;
+}
+.superpower-grid {
+grid-template-columns: 1fr;
+}
+.btn {
+width: 100%;
+margin: 10px 0;
+}
+.session-code {
+font-size: 1.5em;
+letter-spacing: 2px;
+}
+.opportunity-grid {
+grid-template-columns: 1fr;
+}
+.constellation-container {
+flex-direction: column;
+}
+.live-constellation-chart svg {
+width: 100%;
+height: 300px;
+}
+}
+
+@media (max-width: 480px) {
+.gift-mapper {
+padding: 15px;
+margin: 5px;
+}
+h1 {
+font-size: 2em;
+}
+h2 {
+font-size: 1.5em;
+}
+.session-code {
+font-size: 1.2em;
+letter-spacing: 1px;
+padding: 10px 15px;
+}
+}
+</style>
+</head>
+<body>
+<div class="gift-mapper">
+<!-- Welcome Step -->
+<div class="step active" id="welcome">
+<h1>🌟 Neurodiversity GiftMapper</h1>
+<div class="intro-text">
+<p>Discover your collective genius and unlock entrepreneurial opportunities!</p>
+<p><strong>Conference-ready assessment with real-time collaboration mapping</strong></p>
+</div>
+<button class="btn" onclick="showOptions()">Begin Discovery</button>
+</div>
+
+<!-- Options Step -->
+<div class="step" id="options">
+<h2>Choose Your Session Type</h2>
+<div class="question-container">
+<button class="btn" onclick="createSession()" style="background: #27ae60; margin: 10px; width: 200px;">
+🎪 Host Group Session
+</button>
+<div style="margin: 20px 0; color: rgba(255,255,255,0.8);">OR</div>
+<div style="margin: 20px 0;">
+<input type="text" id="join-code" placeholder="Enter Session Code" maxlength="6" style="width: 150px;">
+<button class="btn" onclick="joinSession()" style="background: #3498db;">
+🚀 Join Session
+</button>
+</div>
+<div style="margin-top: 30px;">
+<button class="btn" onclick="startIndividual()" style="background: #9b59b6;">
+👤 Individual Assessment
+</button>
+</div>
+</div>
+</div>
+
+<!-- Session Created Step -->
+<div class="step" id="session-created">
+<h2>🎉 Session Created!</h2>
+<div class="session-info">
+<div style="margin-bottom: 20px;">Share this code with your participants:</div>
+<div class="session-code" id="created-session-code">ABC123</div>
+<div style="font-size: 0.9em; opacity: 0.8; margin-top: 15px;">
+Others can join by clicking "Join Session" and entering this code
+</div>
+<div id="connection-status" class="connection-status status-connected">
+✅ Real-time sync enabled - participants can join from any device
+</div>
+</div>
+<div class="question-container">
+<div class="question">Ready to begin? Choose your next step:</div>
+</div>
+<button class="btn" onclick="proceedToAssessment()">Continue to Assessment</button>
+<button class="btn" onclick="viewGroupDashboard()" style="background: #9b59b6;">👥 View Dashboard</button>
+</div>
+
+<!-- Name Collection -->
+<div class="step" id="name-step">
+<h2>Conference Setup</h2>
+<div class="intro-text">
+<p>This helps us create your personalized constellation and connect you with your hub!</p>
+</div>
+<div class="question-container">
+<input type="text" id="participant-name" placeholder="Your name or nickname" style="width: 100%; padding: 15px; border-radius: 10px; border: none; font-size: 1.1em; text-align: center; margin-bottom: 20px;">
+<div style="margin: 20px 0;">
+<label for="hub-number" style="display: block; margin-bottom: 10px; font-weight: bold;">Which conference hub are you in?</label>
+<select id="hub-number" style="width: 100%; padding: 15px; border-radius: 10px; border: none; font-size: 1.1em; text-align: center; background: rgba(255,255,255,0.9); color: #333;">
+<option value="">Select your hub...</option>
+<option value="1">Hub 1</option>
+<option value="2">Hub 2</option>
+<option value="3">Hub 3</option>
+<option value="4">Hub 4</option>
+<option value="5">Hub 5</option>
+<option value="6">Hub 6</option>
+<option value="7">Hub 7</option>
+<option value="8">Hub 8</option>
+<option value="9">Hub 9</option>
+<option value="10">Hub 10</option>
+</select>
+</div>
+</div>
+<button class="btn" onclick="startAssessment()" id="name-next" disabled>Continue to Assessment</button>
+</div>
+
+<!-- Assessment Step -->
+<div class="step" id="assessment">
+<h2>Your Intelligence Constellation Assessment</h2>
+<div class="progress-bar">
+<div class="progress-fill" id="progress-bar" style="width: 0%;"></div>
+</div>
+<div id="assessment-content"></div>
+<button class="btn" onclick="nextQuestion()" id="next-btn" disabled>Next</button>
+</div>
+
+<!-- Superpowers Step -->
+<div class="step" id="superpowers">
+<h2>Choose Your Top 3 Peer Superpowers</h2>
+<div class="progress-bar">
+<div class="progress-fill" style="width: 75%;"></div>
+</div>
+<div class="intro-text">Which of these best describe how you help others?</div>
+<div class="superpower-grid" id="superpower-grid"></div>
+<button class="btn" onclick="nextFromSuperpowers()" id="superpower-next" disabled>Continue</button>
+</div>
+
+<!-- Vision Step -->
+<div class="step" id="vision">
+<h2>Your Vision for Impact</h2>
+<div class="progress-bar">
+<div class="progress-fill" style="width: 90%;"></div>
+</div>
+<div class="question-container">
+<div class="question">Complete this sentence:</div>
+<div class="question" style="font-size: 1.3em; color: #ff6b6b; margin-bottom: 15px;">
+"The world needs me to..."
+</div>
+<textarea id="vision-input" placeholder="Share your vision for how you want to impact the world..."></textarea>
+</div>
+<button class="btn" onclick="generateResults()">Discover My Constellation</button>
+</div>
+
+<!-- Results Step -->
+<div class="step" id="results">
+<h2>Your Neurodiversity Gift Constellation</h2>
+<div class="progress-bar">
+<div class="progress-fill" style="width: 100%;"></div>
+</div>
+
+<!-- Individual Constellation -->
+<div class="constellation-container">
+<div class="constellation-chart">
+<svg width="400" height="400" viewBox="0 0 400 400" id="individual-constellation">
+<defs>
+<radialGradient id="spaceGradient" cx="50%" cy="50%" r="50%">
+<stop offset="0%" style="stop-color:#1a1a3e;stop-opacity:1" />
+<stop offset="100%" style="stop-color:#0a0a1e;stop-opacity:1" />
+</radialGradient>
+</defs>
+<rect width="400" height="400" fill="url(#spaceGradient)"/>
+<g id="constellation-stars"></g>
+<g id="constellation-lines"></g>
+<g id="constellation-labels"></g>
+</svg>
+</div>
+<div class="constellation-stats">
+<div class="stat-row">
+<span class="stat-label">🌟 Brightest Star:</span>
+<span class="stat-value" id="brightest-star">--</span>
+</div>
+<div class="stat-row">
+<span class="stat-label">⭐ Constellation Type:</span>
+<span class="stat-value" id="constellation-type">--</span>
+</div>
+<div class="stat-row">
+<span class="stat-label">✨ Cosmic Power:</span>
+<span class="stat-value" id="cosmic-power">--</span>
+</div>
+<div class="stat-row">
+<span class="stat-label">🌌 Universe Impact:</span>
+<span class="stat-value" id="universe-impact">--</span>
+</div>
+</div>
+</div>
+
+<div class="question-container">
+<div id="gift-statement" style="font-size: 1.3em; font-weight: bold; margin-bottom: 20px;"></div>
+<div id="primary-superpower" style="background: #ff6b6b; padding: 15px 25px; border-radius: 50px; display: inline-block; margin: 10px;"></div>
+</div>
+
+<div class="vision-box">
+<strong>Your Vision:</strong>
+<div id="user-vision" style="margin-top: 10px; font-style: italic;"></div>
+</div>
+
+<div style="margin-top: 30px;">
+<button class="btn" onclick="downloadResults()">📄 Save Constellation</button>
+<button class="btn" onclick="shareResults()">📤 Share Profile</button>
+<button class="btn" onclick="viewGroupDashboard()" id="group-dashboard-btn" style="display: none; background: #9b59b6;">👥 Group Dashboard</button>
+<button class="btn" onclick="restart()">🔄 Start Over</button>
+</div>
+</div>
+
+<!-- Group Dashboard -->
+<div class="step" id="group-dashboard">
+<h2>🎪 Collective Genius Dashboard</h2>
+<div class="session-info">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+<span>Session Code: <strong id="display-session-code"></strong></span>
+<span>Participants: <strong id="participant-count">0</strong></span>
+</div>
+<div style="font-size: 0.9em; opacity: 0.8;">Share this code with others to join your session!</div>
+<div id="dashboard-connection-status" class="connection-status status-connected">
+✅ Real-time sync active
+</div>
+</div>
+
+<!-- Live Constellation Overlay -->
+<div id="live-constellation-container" style="margin: 30px 0;">
+<h3>🌌 Collective Constellation Map</h3>
+<div class="live-constellation-chart">
+<svg width="600" height="400" viewBox="0 0 600 400" id="live-constellation-svg">
+<defs>
+<radialGradient id="liveSpaceGradient" cx="50%" cy="50%" r="50%">
+<stop offset="0%" style="stop-color:#1a1a3e;stop-opacity:1" />
+<stop offset="100%" style="stop-color:#0a0a1e;stop-opacity:1" />
+</radialGradient>
+</defs>
+<rect width="600" height="400" fill="url(#liveSpaceGradient)"/>
+<g id="live-constellation-participants"></g>
+<g id="live-constellation-connections"></g>
+<g id="live-constellation-labels"></g>
+</svg>
+</div>
+</div>
+
+<div id="all-participants">
+<h3>👥 Current Participants:</h3>
+<div class="participant-list" id="all-participant-tags"></div>
+</div>
+
+<!-- Entrepreneurial Opportunities -->
+<div id="entrepreneurial-opportunities" style="display: none; margin-top: 40px;">
+<h3>🚀 3 Entrepreneurial Opportunities From Your Collective Genius</h3>
+<div class="opportunity-grid" id="opportunity-cards"></div>
+</div>
+
+<div style="margin-top: 30px;">
+<button class="btn" onclick="generateBusinessOpportunities()" id="generate-opportunities-btn" style="display: none; background: #e74c3c;">🚀 Generate Business Opportunities</button>
+<button class="btn" onclick="exportGroupData()">📊 Export Data</button>
+<button class="btn" onclick="backToResults()">👤 My Profile</button>
+<button class="btn" onclick="testAddParticipant()" style="background: #95a5a6;">🧪 Add Test Participant</button>
+</div>
+</div>
+
+<!-- Loading Step -->
+<div class="step" id="loading">
+<div class="loading">
+<div class="loading-spinner"></div>
+<h3 id="loading-message">Creating your session...</h3>
+<p>Preparing collective genius mapping...</p>
+</div>
+</div>
+</div>
+
+<script>
+// Firebase Configuration - Replace with your actual config
+const firebaseConfig = {
+apiKey: "AIzaSyCgNBubK8yce1BOZ-opG3WiYtddSvoENME",
+authDomain: "neurodiversity-giftmapper.firebaseapp.com",
+databaseURL: "https://neurodiversity-giftmapper-default-rtdb.firebaseio.com",
+projectId: "neurodiversity-giftmapper",
+storageBucket: "neurodiversity-giftmapper.firebasestorage.app",
+messagingSenderId: "244274800284",
+appId: "1:244274800284:web:41c837df1656759a87af59",
+measurementId: "G-ZWLH0C7R76"
+};
+
+// Global variables
+let database = null;
+let firebaseAvailable = false;
+let dashboardPolling = null;
+let participantListeners = new Map();
+
+// Initialize Firebase
+try {
+firebase.initializeApp(firebaseConfig);
+database = firebase.database();
+firebaseAvailable = true;
+console.log('✅ Firebase initialized successfully');
+} catch (error) {
+console.warn('⚠ Firebase initialization failed, using localStorage only:', error);
+firebaseAvailable = false;
+}
+
+// Global state management
+let assessmentData = {
+participantName: '',
+hubNumber: '',
+intelligenceScores: {},
+selectedSuperpowers: [],
+visionStatement: '',
+isGroupSession: false,
+sessionId: null,
+isHost: false,
+currentQuestion: 0,
+responses: []
+};
+
+// Intelligence types and questions (streamlined for conference)
+const intelligenceTypes = {
+linguistic: {
+name: "Word Smart",
+questions: [
+"I can translate complex emotional experiences into words that help others understand",
+"I'm good at explaining psychological concepts in simple terms"
+]
+},
+logicalMath: {
+name: "Logic Smart", 
+questions: [
+"I notice patterns in my symptoms, moods, or treatment responses"
+]
+},
+musical: {
+name: "Music Smart",
+questions: [
+"Music has been crucial for my healing and expression"
+]
+},
+bodilyKinesthetic: {
+name: "Body Smart",
+questions: [
+"I've learned to read my body's signals for early warning signs"
+]
+},
+visualSpatial: {
+name: "Picture Smart",
+questions: [
+"I think in images and see beauty in unexpected places",
+"I use art, drawing, or visual expression for healing"
+]
+},
+interpersonal: {
+name: "People Smart",
+questions: [
+"I naturally connect with others in crisis because I recognize their journey"
+]
+},
+intrapersonal: {
+name: "Self Smart",
+questions: [
+"I've developed deep self-awareness through my mental health journey"
+]
+},
+naturalistic: {
+name: "Nature Smart",
+questions: [
+"I find healing and perspective in nature"
+]
+},
+existential: {
+name: "Meaning Smart",
+questions: [
+"I ask big questions about meaning, purpose, and reality",
+"I help others find meaning in their suffering"
+]
+}
+};
+
+const superpowers = [
+{
+id: "crisisNavigator",
+name: "Crisis Navigator",
+icon: "🧭 ",
+description: "I help others navigate life storms and find their way through chaos"
+},
